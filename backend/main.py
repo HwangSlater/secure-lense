@@ -1,0 +1,436 @@
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, status, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional, Dict, List
+import os
+import uuid
+import json
+from datetime import datetime, timedelta
+from collections import defaultdict
+from pathlib import Path
+
+from models import User, get_db, init_db, pwd_context
+from auth import create_access_token, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES
+from analyzer import analyze_file, UPLOAD_DIR, ensure_upload_dir, schedule_file_deletion
+import google.generativeai as genai
+
+app = FastAPI(title="SecureLens API")
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://frontend:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Rate limiting storage
+upload_counts = defaultdict(list)
+MAX_UPLOADS_PER_HOUR = int(os.getenv("MAX_UPLOADS_PER_HOUR", "10"))
+
+# Initialize Gemini
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
+# Initialize database on startup
+@app.on_event("startup")
+def startup_event():
+    init_db()
+    ensure_upload_dir()
+
+
+# Pydantic models
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str
+    username: str
+    role: str
+    credits: int
+
+
+class FileUploadResponse(BaseModel):
+    scan_id: str
+    filename: str
+    risk_score: int
+    risk_level: str
+    clamav_result: Optional[str]
+    yara_matches: List[str]
+    shellcode_patterns: List[str]
+    suspicious_strings: List[str]
+    spearphishing_indicators: Optional[Dict]
+    file_deleted_at: str
+
+
+class AIAnalysisRequest(BaseModel):
+    scan_id: str
+
+
+class AIAnalysisResponse(BaseModel):
+    analysis: str
+    credits_used: int
+    remaining_credits: int
+
+
+class CreditChargeRequest(BaseModel):
+    amount: int
+
+
+class CreditChargeResponse(BaseModel):
+    success: bool
+    new_balance: int
+    message: str
+
+
+# Store analysis results in memory (in production, use Redis or database)
+analysis_results: Dict[str, Dict] = {}
+
+
+# Rate limiting helper
+def check_rate_limit(client_ip: str) -> bool:
+    """Check if client has exceeded rate limit"""
+    now = datetime.utcnow()
+    cutoff = now - timedelta(hours=1)
+    
+    # Clean old entries
+    upload_counts[client_ip] = [ts for ts in upload_counts[client_ip] if ts > cutoff]
+    
+    # Check limit
+    if len(upload_counts[client_ip]) >= MAX_UPLOADS_PER_HOUR:
+        return False
+    
+    # Add current upload
+    upload_counts[client_ip].append(now)
+    return True
+
+
+# Authentication endpoints
+@app.post("/auth/login", response_model=LoginResponse)
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.username == form_data.username).first()
+    if not user or not user.verify_password(form_data.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="아이디 또는 비밀번호가 올바르지 않습니다."
+        )
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    
+    return LoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        username=user.username,
+        role=user.role,
+        credits=user.credits
+    )
+
+
+@app.get("/auth/me")
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    return {
+        "username": current_user.username,
+        "role": current_user.role,
+        "credits": current_user.credits
+    }
+
+
+# File upload and analysis endpoint
+@app.post("/files/upload", response_model=FileUploadResponse)
+async def upload_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    request: Request = None
+):
+    # Rate limiting
+    client_ip = request.client.host if request else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="시간당 업로드 제한(10개)을 초과했습니다. 1시간 후 다시 시도해주세요.",
+            headers={"Retry-After": "3600"}
+        )
+    
+    # Generate unique filename
+    file_id = str(uuid.uuid4())
+    file_ext = Path(file.filename).suffix
+    stored_filename = f"{file_id}{file_ext}"
+    file_path = os.path.join(UPLOAD_DIR, stored_filename)
+    
+    try:
+        # Save uploaded file
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        
+        # Analyze file
+        analysis_result = analyze_file(file_path, file.filename)
+        
+        # Prepare response
+        scan_id = file_id
+        
+        # Format response
+        response_data = {
+            "scan_id": scan_id,
+            "filename": file.filename,
+            "risk_score": analysis_result["risk_score"],
+            "risk_level": analysis_result["risk_level"],
+            "clamav_result": analysis_result.get("clamav_result"),
+            "yara_matches": analysis_result.get("yara_matches", []),
+            "shellcode_patterns": analysis_result.get("binary_analysis", {}).get("shellcode_patterns", []),
+            "suspicious_strings": analysis_result.get("binary_analysis", {}).get("suspicious_strings", []),
+            "spearphishing_indicators": None,
+            "file_deleted_at": (datetime.utcnow() + timedelta(hours=1)).isoformat() + "Z"
+        }
+        
+        # Add email-specific indicators
+        if analysis_result.get("email_analysis"):
+            email_analysis = analysis_result["email_analysis"]
+            response_data["spearphishing_indicators"] = {
+                "spoofed_sender": email_analysis.get("spoofed_sender", False),
+                "phishing_keywords": email_analysis.get("phishing_keywords", []),
+                "suspicious_urls": email_analysis.get("suspicious_urls", []),
+                "has_double_extension": email_analysis.get("has_double_extension", False),
+                "header_analysis": email_analysis.get("header_analysis", {})
+            }
+        
+        # Store analysis result
+        analysis_results[scan_id] = {
+            "analysis": analysis_result,
+            "file_path": file_path,
+            "filename": file.filename,
+            "uploaded_at": datetime.utcnow().isoformat()
+        }
+        
+        # Schedule file deletion
+        schedule_file_deletion(file_path, delay_hours=1)
+        
+        return FileUploadResponse(**response_data)
+        
+    except ValueError as e:
+        # Validation error
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        # Other errors
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"파일 분석 중 오류가 발생했습니다: {str(e)}"
+        )
+
+
+# AI analysis endpoint
+@app.post("/analysis/ai", response_model=AIAnalysisResponse)
+async def ai_analysis(
+    request: AIAnalysisRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    scan_id = request.scan_id
+    
+    # Check if analysis result exists
+    if scan_id not in analysis_results:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="분석 결과를 찾을 수 없습니다."
+        )
+    
+    analysis_data = analysis_results[scan_id]["analysis"]
+    filename = analysis_results[scan_id]["filename"]
+    
+    # Check credits (unless admin)
+    credits_used = 0
+    if current_user.role != "ADMIN":
+        if current_user.credits <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="AI 분석을 사용하려면 분석 티켓이 필요합니다. 충전하기에서 티켓을 구매해주세요."
+            )
+        
+        # Deduct credit
+        current_user.credits -= 1
+        db.commit()
+        credits_used = 1
+    
+    # Prepare Gemini prompt (Korean)
+    prompt = f"""
+당신은 20년 경력의 사이버 보안 전문가입니다. 일반인도 이해할 수 있게 쉽게 설명해주세요.
+
+**분석 결과:**
+
+- 파일명: {filename}
+- 위험도 점수: {analysis_data['risk_score']}/100
+- 위험도 등급: {analysis_data['risk_level']}
+- ClamAV 탐지: {analysis_data.get('clamav_result', '없음')}
+- YARA 탐지 규칙: {', '.join(analysis_data.get('yara_matches', [])) if analysis_data.get('yara_matches') else '없음'}
+- 쉘코드 패턴: {', '.join(analysis_data.get('binary_analysis', {}).get('shellcode_patterns', [])) if analysis_data.get('binary_analysis', {}).get('shellcode_patterns') else '없음'}
+- 의심스러운 문자열: {', '.join(analysis_data.get('binary_analysis', {}).get('suspicious_strings', [])[:10]) if analysis_data.get('binary_analysis', {}).get('suspicious_strings') else '없음'}
+- 스피어피싱 지표: {json.dumps(analysis_data.get('email_analysis', {}), ensure_ascii=False, indent=2) if analysis_data.get('email_analysis') else '없음'}
+
+**작업:**
+
+다음 형식으로 응답해주세요:
+
+## 🎯 위험도 평가
+
+[{analysis_data['risk_level']}] - 5단계 중 선택
+
+## 📋 3줄 요약
+
+1. 이 파일의 정체가 무엇인지
+2. 어떤 위험이 있는지
+3. 왜 위험한지
+
+## 🎣 스피어피싱 가능성
+
+[0-100%] - 이 파일이 스피어피싱 공격의 일부일 확률
+
+## ⚠️ 발견된 위협 요소
+
+- (구체적인 증거 나열)
+
+## ✅ 대응 방법
+
+1. 즉시 해야 할 조치
+2. 예방을 위한 조치
+
+## 📚 유사 공격 사례
+
+실제 발생했던 유사한 공격 1개를 간단히 소개 (예: "2024년 국세청 사칭 이메일 공격")
+
+**주의사항:**
+
+- 전문 용어 사용 시 괄호로 쉬운 설명 추가 (예: "쉘코드(악성 명령어)")
+- 위험도를 과장하거나 축소하지 말 것
+- 구체적인 증거 기반으로만 설명
+- 모든 설명은 한국어로 작성
+"""
+    
+    try:
+        # Call Gemini API
+        if not GEMINI_API_KEY:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="AI 분석 서비스가 설정되지 않았습니다."
+            )
+        
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.7,
+                max_output_tokens=2000,
+            )
+        )
+        
+        analysis_text = response.text
+        
+    except Exception as e:
+        # Handle API errors gracefully
+        error_msg = str(e).lower()
+        if "429" in error_msg or "rate limit" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="AI 분석 서비스가 일시적으로 혼잡합니다. 잠시 후 다시 시도해주세요."
+            )
+        else:
+            # Return generic safety message
+            analysis_text = f"""## 🎯 위험도 평가
+
+{analysis_data['risk_level']}
+
+## 📋 3줄 요약
+
+1. 이 파일은 여러 보안 엔진에서 위험 신호가 감지되었습니다
+2. 실행 시 시스템에 악영향을 줄 수 있습니다
+3. 의심스러운 패턴과 행위가 포함되어 있습니다
+
+## ⚠️ 발견된 위협 요소
+
+- 보안 엔진 탐지: {analysis_data.get('clamav_result', '없음')}
+- YARA 규칙 매칭: {len(analysis_data.get('yara_matches', []))}개
+- 의심스러운 패턴 발견
+
+## ✅ 대응 방법
+
+1. 이 파일을 실행하지 마세요
+2. 시스템을 완전히 검사하고 필요시 격리하세요
+3. 향후 유사한 파일을 받지 않도록 주의하세요
+
+## 📚 유사 공격 사례
+
+악성 코드가 이메일 첨부파일로 유포되는 사례는 지속적으로 발생하고 있습니다.
+"""
+    
+    # Get updated credits
+    db.refresh(current_user)
+    
+    return AIAnalysisResponse(
+        analysis=analysis_text,
+        credits_used=credits_used,
+        remaining_credits=current_user.credits
+    )
+
+
+# Credit charging endpoint
+@app.post("/credits/charge", response_model=CreditChargeResponse)
+async def charge_credits(
+    request: CreditChargeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if request.amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="충전할 티켓 수는 1개 이상이어야 합니다."
+        )
+    
+    current_user.credits += request.amount
+    db.commit()
+    db.refresh(current_user)
+    
+    return CreditChargeResponse(
+        success=True,
+        new_balance=current_user.credits,
+        message=f"{request.amount}개의 분석 티켓이 충전되었습니다."
+    )
+
+
+# Analysis history endpoint
+@app.get("/analysis/history")
+async def get_analysis_history(
+    current_user: User = Depends(get_current_user),
+    limit: int = 10
+):
+    # Get recent analyses (simplified - in production, store in database)
+    user_analyses = []
+    for scan_id, data in list(analysis_results.items())[-limit:]:
+        user_analyses.append({
+            "scan_id": scan_id,
+            "filename": data["filename"],
+            "risk_score": data["analysis"]["risk_score"],
+            "risk_level": data["analysis"]["risk_level"],
+            "uploaded_at": data["uploaded_at"]
+        })
+    
+    return {"analyses": user_analyses[-limit:]}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+

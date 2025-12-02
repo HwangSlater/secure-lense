@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./securelens.db
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - UPLOAD_DIR=/tmp/securelens_uploads
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+      - MAX_UPLOADS_PER_HOUR=10
+    volumes:
+      - ./backend:/app
+      - /tmp/securelens_uploads:/tmp/securelens_uploads
+      - backend-db:/app
+    depends_on:
+      - clamav
+    networks:
+      - securelens-network
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    networks:
+      - securelens-network
+
+  clamav:
+    image: clamav/clamav:latest
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav-data:/var/lib/clamav
+    networks:
+      - securelens-network
+
+volumes:
+  clamav-data:
+  backend-db:
+
+networks:
+  securelens-network:
+    driver: bridge
+

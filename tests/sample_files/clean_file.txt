@@ -1,0 +1,4 @@
+This is a completely safe text file for testing.
+It contains no malicious code, shellcode, or suspicious patterns.
+Safe for analysis and testing purposes.
+
