@@ -6,7 +6,6 @@ import Link from 'next/link'
 import FileUpload from '@/components/FileUpload'
 import AnalysisResult from '@/components/AnalysisResult'
 import AIInsight from '@/components/AIInsight'
-import CreditCharge from '@/components/CreditCharge'
 
 interface UserInfo {
   username: string
@@ -122,8 +121,10 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-slate-200">
-                접속자: <span className="font-semibold">{userInfo.username}</span> | 
-                보유 티켓: <span className="font-semibold">{userInfo.credits}</span>개
+                접속자: <span className="font-semibold">{userInfo.username}</span>
+                {userInfo.role !== 'ADMIN' && (
+                  <> | 보유 티켓: <span className="font-semibold">{userInfo.credits}</span>개</>
+                )}
               </div>
               <Link
                 href="/mypage"
@@ -137,7 +138,6 @@ export default function DashboardPage() {
               >
                 티켓 구매
               </Link>
-              <CreditCharge onCreditsUpdated={handleCreditsUpdated} />
               <button
                 onClick={handleLogout}
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"

@@ -134,6 +134,7 @@ export default function ResultPage({ params }: PageProps) {
             scanId={data.scan_id}
             riskScore={data.risk_score}
             riskLevel={data.risk_level}
+            filename={data.filename}
             aiAnalysis={aiAnalysis}
             onAnalysisLoaded={setAiAnalysis}
           />

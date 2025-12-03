@@ -8,11 +8,12 @@ interface AIInsightProps {
   scanId: string
   riskScore: number
   riskLevel: string
+  filename: string
   aiAnalysis: string | null
   onAnalysisLoaded: (analysis: string) => void
 }
 
-export default function AIInsight({ scanId, riskScore, riskLevel, aiAnalysis, onAnalysisLoaded }: AIInsightProps) {
+export default function AIInsight({ scanId, riskScore, riskLevel, filename, aiAnalysis, onAnalysisLoaded }: AIInsightProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [locked, setLocked] = useState(true)
@@ -146,8 +147,19 @@ export default function AIInsight({ scanId, riskScore, riskLevel, aiAnalysis, on
 
       {loading && !aiAnalysis ? (
         <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-          <p className="text-slate-300">AI 분석 중...</p>
+          <div className="flex flex-col items-center">
+            <div className="relative w-16 h-16 mb-6">
+              <div className="absolute inset-0 border-4 border-cyan-400/30 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-transparent border-t-cyan-400 rounded-full animate-spin"></div>
+            </div>
+            <p className="text-slate-300 text-lg font-semibold mb-2">AI 분석 중...</p>
+            <p className="text-slate-400 text-sm">분석에 몇 분 정도 걸릴 수 있습니다.</p>
+            <div className="mt-4 flex space-x-2">
+              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+          </div>
         </div>
       ) : aiAnalysis ? (
         <div className="prose max-w-none prose-invert">
@@ -173,7 +185,15 @@ export default function AIInsight({ scanId, riskScore, riskLevel, aiAnalysis, on
               ),
             }}
           >
-            {aiAnalysis}
+            {(() => {
+              // 긴 인사말이 첫 문단에 있는 경우 제거
+              let processedAnalysis = aiAnalysis
+              // "안녕하세요"로 시작하고 "경력"과 "전문가"가 포함된 첫 문단 제거
+              const greetingPattern = /^[^\n]*(?:안녕하세요[^\n]*(?:경력|전문가)[^\n]*의뢰하신[^\n]*파일에 대한[^\n]*분석 결과[^\n]*(?:일반인도[^\n]*이해하기[^\n]*쉽게[^\n]*설명[^\n]*드리겠습니다)?)[^\n]*\n?/i
+              processedAnalysis = processedAnalysis.replace(greetingPattern, '')
+              // 파일명만 포함된 간단한 문구로 시작
+              return `${filename} 파일에 대한 분석 결과\n\n${processedAnalysis.trim()}`
+            })()}
           </ReactMarkdown>
         </div>
       ) : (
