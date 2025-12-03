@@ -24,7 +24,7 @@ jobs:
 
       - name: Copy files to server
         run: |
-          scp -i ~/.ssh/deploy_key -r . ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/securelens
+          rsync -avz --exclude 'node_modules' --exclude '.next' --exclude '.git' --exclude '__pycache__' --exclude '*.db' -e "ssh -i ~/.ssh/deploy_key" ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/securelens/
 
       - name: Update .env file on server (if needed)
         run: |
