@@ -69,12 +69,18 @@ jobs:
           sudo mkdir -p /tmp/securelens_uploads
           sudo chmod 777 /tmp/securelens_uploads
           
-          # Docker 공간 정리 (빌드 전 - 모든 빌드 캐시 및 사용하지 않는 이미지 삭제)
+          # Docker 공간 정리 (빌드 전 - 최대한 많은 공간 확보)
+          # 실행 중인 컨테이너(mysql, nginx)는 유지하고 나머지 정리
           sudo docker builder prune -a -f || true
-          sudo docker system prune -a -f || true
+          # Backend/Frontend 이미지만 삭제 (MySQL, Nginx는 유지)
+          sudo docker images | grep -E "securelens|backend|frontend" | awk '{print \$3}' | xargs -r sudo docker rmi -f || true
+          sudo docker container prune -f || true
+          sudo docker system prune -f || true
           
           # 디스크 공간 확인
           df -h
+          echo "Available disk space before build:"
+          df -h / | tail -1
           
           # Backend 빌드 (단계별로 진행하여 공간 절약)
           sudo docker compose -f docker-compose.app.yml build backend || (sudo docker builder prune -a -f && exit 1)
