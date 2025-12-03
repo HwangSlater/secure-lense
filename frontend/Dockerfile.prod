@@ -9,6 +9,9 @@ RUN npm install
 # Copy application files
 COPY . .
 
+# Ensure public directory exists (Next.js requires it)
+RUN mkdir -p public
+
 # Build the application
 RUN npm run build
 
@@ -27,6 +30,7 @@ RUN npm install --omit=dev
 
 # Copy built application from builder
 COPY --from=builder /app/.next ./.next
+# Copy public directory (created in builder stage, even if empty)
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.js* ./
 
