@@ -17,17 +17,17 @@ interface AnalysisResultProps {
 const getRiskColor = (riskLevel: string) => {
   switch (riskLevel) {
     case '매우 낮음':
-      return 'text-green-600 bg-green-50'
+      return 'text-green-400 bg-green-900/30 border border-green-700/50'
     case '낮음':
-      return 'text-yellow-600 bg-yellow-50'
+      return 'text-yellow-400 bg-yellow-900/30 border border-yellow-700/50'
     case '보통':
-      return 'text-orange-600 bg-orange-50'
+      return 'text-orange-400 bg-orange-900/30 border border-orange-700/50'
     case '높음':
-      return 'text-red-600 bg-red-50'
+      return 'text-red-400 bg-red-900/30 border border-red-700/50'
     case '매우 높음':
-      return 'text-red-800 bg-red-100'
+      return 'text-red-300 bg-red-900/40 border border-red-600/50'
     default:
-      return 'text-gray-600 bg-gray-50'
+      return 'text-slate-400 bg-slate-800/30 border border-slate-700/50'
   }
 }
 
@@ -99,7 +99,7 @@ const getUserFriendlySummary = (data: AnalysisResultProps['data']) => {
 }
 
 const SectionIcon = ({ type }: { type: 'score' | 'engine' | 'email' | 'timeline' }) => {
-  const base = 'h-5 w-5 mr-2 text-blue-600'
+  const base = 'h-5 w-5 mr-2 text-cyan-400'
   switch (type) {
     case 'score':
       return (
@@ -143,13 +143,13 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
   const friendlySummary = getUserFriendlySummary(data)
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 space-y-6">
+    <div className="bg-slate-900/70 rounded-lg shadow-lg p-6 space-y-6 border border-slate-700">
       <div>
         <div className="flex items-center mb-2">
           <SectionIcon type="score" />
-          <h2 className="text-2xl font-bold text-gray-800">기술 분석 결과</h2>
+          <h2 className="text-2xl font-bold text-slate-50">기술 분석 결과</h2>
         </div>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-slate-400">
           아래 정보는 파일 자체를 정적으로 분석한 결과이며, 실행 없이 구조와 패턴만을 기반으로 평가합니다.
         </p>
       </div>
@@ -158,8 +158,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
       <div className="mb-2">
         <div className="flex justify-between items-center mb-3">
           <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-600 mb-1">위험도 점수</span>
-            <span className="text-xs text-gray-500">
+            <span className="text-sm font-medium text-slate-300 mb-1">위험도 점수</span>
+            <span className="text-xs text-slate-400">
               점수가 높을수록 악성일 가능성이 크며, 80점 이상은 즉시 조치가 필요합니다.
             </span>
           </div>
@@ -167,23 +167,23 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
             {data.risk_score}/100 · {data.risk_level}
           </span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+        <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
           <div
             className={`h-3 rounded-full transition-all duration-300 ${gaugeColorClass}`}
             style={{ width: `${data.risk_score}%` }}
           ></div>
         </div>
-        <p className="mt-3 text-sm text-gray-700 leading-relaxed">{getRiskDescription(data.risk_level)}</p>
+        <p className="mt-3 text-sm text-slate-200 leading-relaxed">{getRiskDescription(data.risk_level)}</p>
       </div>
 
       {/* User-friendly summary */}
       {friendlySummary.length > 0 && (
-        <div className="border border-blue-50 bg-blue-50/60 rounded-md p-4">
+        <div className="border border-cyan-800/50 bg-cyan-900/20 rounded-md p-4">
           <div className="flex items-center mb-2">
             <SectionIcon type="engine" />
-            <span className="text-sm font-semibold text-gray-800">분석 요약 (일반 사용자용)</span>
+            <span className="text-sm font-semibold text-slate-200">분석 요약 (일반 사용자용)</span>
           </div>
-          <ul className="mt-1 space-y-1 text-sm text-gray-700 list-disc list-inside">
+          <ul className="mt-1 space-y-1 text-sm text-slate-300 list-disc list-inside">
             {friendlySummary.map((msg, idx) => (
               <li key={idx}>{msg}</li>
             ))}
@@ -193,21 +193,21 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
 
       {/* ClamAV Result */}
       {data.clamav_result && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-          <span className="font-semibold text-red-800">ClamAV 탐지 결과:</span>
-          <span className="ml-2 text-red-700">{data.clamav_result}</span>
+        <div className="mb-4 p-4 bg-red-900/30 border border-red-700/50 rounded-md">
+          <span className="font-semibold text-red-300">ClamAV 탐지 결과:</span>
+          <span className="ml-2 text-red-200">{data.clamav_result}</span>
         </div>
       )}
 
       {/* YARA Matches */}
       {data.yara_matches.length > 0 && (
         <div className="mb-4">
-          <span className="font-semibold text-gray-700">YARA 탐지 규칙:</span>
+          <span className="font-semibold text-slate-200">YARA 탐지 규칙:</span>
           <div className="mt-2 flex flex-wrap gap-2">
             {data.yara_matches.map((match, idx) => (
               <span
                 key={idx}
-                className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm"
+                className="px-3 py-1 bg-yellow-900/40 text-yellow-300 border border-yellow-700/50 rounded-full text-sm"
               >
                 {match}
               </span>
@@ -219,10 +219,10 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
       {/* Shellcode Patterns */}
       {data.shellcode_patterns.length > 0 && (
         <div className="mb-4">
-          <span className="font-semibold text-gray-700">쉘코드 패턴 발견:</span>
+          <span className="font-semibold text-slate-200">쉘코드 패턴 발견:</span>
           <ul className="mt-2 space-y-1">
             {data.shellcode_patterns.map((pattern, idx) => (
-              <li key={idx} className="text-sm text-gray-600 bg-red-50 p-2 rounded">
+              <li key={idx} className="text-sm text-red-200 bg-red-900/30 border border-red-700/50 p-2 rounded">
                 {pattern}
               </li>
             ))}
@@ -233,15 +233,15 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
       {/* Suspicious Strings */}
       {data.suspicious_strings.length > 0 && (
         <div className="mb-4">
-          <span className="font-semibold text-gray-700">추출된 의심 문자열:</span>
+          <span className="font-semibold text-slate-200">추출된 의심 문자열:</span>
           <ul className="mt-2 space-y-1 max-h-48 overflow-y-auto">
             {data.suspicious_strings.slice(0, 10).map((str, idx) => (
-              <li key={idx} className="text-sm text-gray-600 bg-yellow-50 p-2 rounded font-mono break-all">
+              <li key={idx} className="text-sm text-yellow-200 bg-yellow-900/20 border border-yellow-700/30 p-2 rounded font-mono break-all">
                 - {str}
               </li>
             ))}
             {data.suspicious_strings.length > 10 && (
-              <li className="text-sm text-gray-500 italic">
+              <li className="text-sm text-slate-400 italic">
                 ... 외 {data.suspicious_strings.length - 10}개 더
               </li>
             )}
@@ -251,19 +251,19 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
 
       {/* Spear-phishing Indicators */}
       {data.spearphishing_indicators && (
-        <div className="mb-4 p-4 bg-orange-50/70 border border-orange-200 rounded-md">
+        <div className="mb-4 p-4 bg-orange-900/20 border border-orange-700/50 rounded-md">
           <div className="flex items-center mb-1">
             <SectionIcon type="email" />
-            <span className="font-semibold text-orange-900">스피어피싱 관련 징후</span>
+            <span className="font-semibold text-orange-300">스피어피싱 관련 징후</span>
           </div>
-          <p className="text-xs text-orange-800 mb-2">
+          <p className="text-xs text-orange-200 mb-2">
             이메일 기반 공격 여부를 간단히 보여줍니다. 아래 항목이 하나라도 참이면 메일 본문과 첨부파일을 특히 주의해서
             확인해야 합니다.
           </p>
-          <ul className="mt-1 space-y-2 text-sm text-orange-800">
+          <ul className="mt-1 space-y-2 text-sm text-orange-200">
             {data.spearphishing_indicators.spoofed_sender && (
               <li className="flex items-center">
-                <span className="mr-2 inline-block h-2 w-2 rounded-full bg-red-500" />
+                <span className="mr-2 inline-block h-2 w-2 rounded-full bg-red-400" />
                 이메일 발신자 주소가 위조되었을 가능성이 있습니다. 메일 주소 전체를 다시 확인하세요.
               </li>
             )}
@@ -284,7 +284,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
               )}
             {data.spearphishing_indicators.has_double_extension && (
               <li className="flex items-center">
-                <span className="mr-2 inline-block h-2 w-2 rounded-full bg-red-500" />
+                <span className="mr-2 inline-block h-2 w-2 rounded-full bg-red-400" />
                 이중 확장자(예: invoice.pdf.exe)가 감지되었습니다. 사용자를 속이기 위한 형태일 수 있습니다.
               </li>
             )}
@@ -293,14 +293,14 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
       )}
 
       {/* Analysis Timeline */}
-      <div className="mt-6 pt-4 border-t border-gray-200">
-        <div className="flex items-center text-sm text-gray-500">
+      <div className="mt-6 pt-4 border-t border-slate-700">
+        <div className="flex items-center text-sm text-slate-400">
           <SectionIcon type="timeline" />
           <p>
-            분석 완료 시간: <span className="font-medium">{new Date().toLocaleString('ko-KR')}</span>
+            분석 완료 시간: <span className="font-medium text-slate-300">{new Date().toLocaleString('ko-KR')}</span>
           </p>
         </div>
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-1 text-xs text-slate-500">
           업로드된 파일은 1시간 후 자동으로 삭제되며, 분석 결과만 안전하게 보관됩니다.
         </p>
       </div>

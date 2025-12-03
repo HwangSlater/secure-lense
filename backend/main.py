@@ -294,7 +294,7 @@ async def ai_analysis(
     analysis_data = db_analysis.analysis_data
     filename = db_analysis.filename
     
-    # Check credits (unless admin)
+    # Check credits (unless admin) - but don't deduct yet
     credits_used = 0
     if current_user.role != "ADMIN":
         if current_user.credits <= 0:
@@ -302,11 +302,6 @@ async def ai_analysis(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail="AI 분석을 사용하려면 분석 티켓이 필요합니다. 충전하기에서 티켓을 구매해주세요."
             )
-        
-        # Deduct credit
-        current_user.credits -= 1
-        db.commit()
-        credits_used = 1
     
     # Prepare Gemini prompt (Korean, no emojis)
     prompt = f"""당신은 20년 경력의 사이버 보안 전문가입니다. 일반인도 이해할 수 있게 쉽게 설명해주세요.
@@ -385,15 +380,26 @@ async def ai_analysis(
         
         analysis_text = response.text
         
+        # Only deduct credit and save after successful API call
+        if current_user.role != "ADMIN":
+            current_user.credits -= 1
+            credits_used = 1
+        
         # Save AI analysis to database
         db_analysis.ai_analysis = analysis_text
         db.commit()
         
+    except HTTPException:
+        # Re-raise HTTP exceptions (they already have proper error messages)
+        raise
     except Exception as e:
         # Log the actual error for debugging
         import traceback
         print(f"Gemini API Error: {str(e)}")
         print(traceback.format_exc())
+        
+        # Rollback any partial changes (though we haven't deducted credits yet)
+        db.rollback()
         
         # Handle API errors gracefully
         error_msg = str(e).lower()
@@ -406,7 +412,7 @@ async def ai_analysis(
             # Return error message instead of generic fallback
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"AI 분석 중 오류가 발생했습니다: {str(e)}"
+                detail=f"AI 분석 중 오류가 발생했습니다. 티켓은 차감되지 않았습니다. 잠시 후 다시 시도해주세요."
             )
     
     # Get updated credits
