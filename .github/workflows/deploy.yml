@@ -17,14 +17,14 @@ jobs:
 
       - name: Setup SSH
         run: |
-          mkdir -p $HOME/.ssh || true
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > $HOME/.ssh/deploy_key
-          chmod 600 $HOME/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> $HOME/.ssh/known_hosts
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
       - name: Copy files to server
         run: |
-          scp -i $HOME/.ssh/deploy_key -r . ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/securelens
+          scp -i ~/.ssh/deploy_key -r . ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/securelens
 
       - name: Update .env file on server (if needed)
         run: |
@@ -58,11 +58,11 @@ jobs:
 
       - name: Copy docker-compose.app.yml
         run: |
-          scp -i $HOME/.ssh/deploy_key docker-compose.app.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/securelens/
+          scp -i ~/.ssh/deploy_key docker-compose.app.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/securelens/
 
       - name: Deploy on server
         run: |
-          ssh -i $HOME/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
           cd ~/securelens
           
           # 필요한 디렉토리 생성
@@ -81,5 +81,5 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          rm -f $HOME/.ssh/deploy_key
+          rm -f ~/.ssh/deploy_key
 
