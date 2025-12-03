@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from pathlib import Path
 
-from models import User, get_db, init_db, pwd_context
+from models import User, Analysis, CreditPurchase, get_db, init_db, pwd_context
 from auth import create_access_token, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES
 from analyzer import analyze_file, UPLOAD_DIR, ensure_upload_dir, schedule_file_deletion
 import google.generativeai as genai
@@ -105,11 +105,7 @@ class AnalysisDetailResponse(BaseModel):
     uploaded_at: str
 
 
-# Store analysis results in memory (in production, use Redis or database)
-analysis_results: Dict[str, Dict] = {}
-
-# Store credit purchase history in memory per user
-credit_purchase_history: Dict[str, List[Dict]] = {}
+# Note: Analysis results and credit purchase history are now stored in database
 
 
 # Rate limiting helper
@@ -171,7 +167,8 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 async def upload_file(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
-    request: Request = None
+    request: Request = None,
+    db: Session = Depends(get_db)
 ):
     # Rate limiting
     client_ip = request.client.host if request else "unknown"
@@ -225,13 +222,19 @@ async def upload_file(
                 "header_analysis": email_analysis.get("header_analysis", {})
             }
         
-        # Store analysis result
-        analysis_results[scan_id] = {
-            "analysis": analysis_result,
-            "file_path": file_path,
-            "filename": file.filename,
-            "uploaded_at": datetime.utcnow().isoformat()
-        }
+        # Store analysis result in database
+        db_analysis = Analysis(
+            scan_id=scan_id,
+            user_id=current_user.id,
+            filename=file.filename,
+            analysis_data=analysis_result,
+            risk_score=analysis_result["risk_score"],
+            risk_level=analysis_result["risk_level"],
+            uploaded_at=datetime.utcnow()
+        )
+        db.add(db_analysis)
+        db.commit()
+        db.refresh(db_analysis)
         
         # Schedule file deletion
         schedule_file_deletion(file_path, delay_hours=1)
@@ -265,15 +268,31 @@ async def ai_analysis(
 ):
     scan_id = request.scan_id
     
-    # Check if analysis result exists
-    if scan_id not in analysis_results:
+    # Check if analysis result exists in database
+    db_analysis = db.query(Analysis).filter(Analysis.scan_id == scan_id).first()
+    if not db_analysis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="분석 결과를 찾을 수 없습니다."
         )
     
-    analysis_data = analysis_results[scan_id]["analysis"]
-    filename = analysis_results[scan_id]["filename"]
+    # Check if user owns this analysis
+    if db_analysis.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="이 분석 결과에 접근할 권한이 없습니다."
+        )
+    
+    # Check if AI analysis already exists
+    if db_analysis.ai_analysis:
+        return AIAnalysisResponse(
+            analysis=db_analysis.ai_analysis,
+            credits_used=0,
+            remaining_credits=current_user.credits
+        )
+    
+    analysis_data = db_analysis.analysis_data
+    filename = db_analysis.filename
     
     # Check credits (unless admin)
     credits_used = 0
@@ -362,6 +381,10 @@ async def ai_analysis(
         
         analysis_text = response.text
         
+        # Save AI analysis to database
+        db_analysis.ai_analysis = analysis_text
+        db.commit()
+        
     except Exception as e:
         # Handle API errors gracefully
         error_msg = str(e).lower()
@@ -426,17 +449,15 @@ async def charge_credits(
     db.commit()
     db.refresh(current_user)
 
-    # Record purchase history in memory (per user)
-    username = current_user.username
-    if username not in credit_purchase_history:
-        credit_purchase_history[username] = []
-    credit_purchase_history[username].append(
-        {
-            "purchased_at": datetime.utcnow().isoformat() + "Z",
-            "amount": request.amount,
-            "balance_after": current_user.credits,
-        }
+    # Record purchase history in database
+    purchase = CreditPurchase(
+        user_id=current_user.id,
+        amount=request.amount,
+        balance_after=current_user.credits,
+        purchased_at=datetime.utcnow()
     )
+    db.add(purchase)
+    db.commit()
     
     return CreditChargeResponse(
         success=True,
@@ -449,39 +470,51 @@ async def charge_credits(
 @app.get("/analysis/history")
 async def get_analysis_history(
     current_user: User = Depends(get_current_user),
-    limit: int = 10
+    limit: int = 10,
+    db: Session = Depends(get_db)
 ):
-    # Get recent analyses (simplified - in production, store in database)
+    # Get recent analyses from database
+    analyses = db.query(Analysis).filter(
+        Analysis.user_id == current_user.id
+    ).order_by(Analysis.uploaded_at.desc()).limit(limit).all()
+    
     user_analyses = []
-    for scan_id, data in list(analysis_results.items())[-limit:]:
+    for analysis in analyses:
         user_analyses.append({
-            "scan_id": scan_id,
-            "filename": data["filename"],
-            "risk_score": data["analysis"]["risk_score"],
-            "risk_level": data["analysis"]["risk_level"],
-            "uploaded_at": data["uploaded_at"]
+            "scan_id": analysis.scan_id,
+            "filename": analysis.filename,
+            "risk_score": analysis.risk_score,
+            "risk_level": analysis.risk_level,
+            "uploaded_at": analysis.uploaded_at.isoformat() + "Z"
         })
     
-    return {"analyses": user_analyses[-limit:]}
+    return {"analyses": user_analyses}
 
 
 @app.get("/analysis/{scan_id}", response_model=AnalysisDetailResponse)
 async def get_analysis_detail(
     scan_id: str,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
-    Get detailed analysis result for a specific scan_id.
-    Uses in-memory storage; in production this should query a database.
+    Get detailed analysis result for a specific scan_id from database.
     """
-    if scan_id not in analysis_results:
+    db_analysis = db.query(Analysis).filter(Analysis.scan_id == scan_id).first()
+    if not db_analysis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="분석 결과를 찾을 수 없습니다."
         )
+    
+    # Check if user owns this analysis
+    if db_analysis.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="이 분석 결과에 접근할 권한이 없습니다."
+        )
 
-    stored = analysis_results[scan_id]
-    analysis = stored["analysis"]
+    analysis = db_analysis.analysis_data
 
     # Reuse the same structure as file upload response
     clamav_result = analysis.get("clamav_result")
@@ -502,15 +535,12 @@ async def get_analysis_detail(
         }
 
     # File deletion time is approximated as upload time + 1 hour
-    try:
-        uploaded_at = datetime.fromisoformat(stored["uploaded_at"])
-    except Exception:
-        uploaded_at = datetime.utcnow()
+    uploaded_at = db_analysis.uploaded_at
     file_deleted_at = (uploaded_at + timedelta(hours=1)).isoformat() + "Z"
 
     return AnalysisDetailResponse(
         scan_id=scan_id,
-        filename=stored["filename"],
+        filename=db_analysis.filename,
         risk_score=analysis["risk_score"],
         risk_level=analysis["risk_level"],
         clamav_result=clamav_result,
@@ -519,28 +549,30 @@ async def get_analysis_detail(
         suspicious_strings=suspicious_strings,
         spearphishing_indicators=spearphishing_indicators,
         file_deleted_at=file_deleted_at,
-        uploaded_at=stored["uploaded_at"],
+        uploaded_at=uploaded_at.isoformat() + "Z",
     )
 
 
 @app.get("/credits/history", response_model=List[CreditPurchaseHistoryItem])
 async def get_credit_history(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
-    Get credit purchase history for the current user.
-    This uses in-memory storage and will reset when the server restarts.
+    Get credit purchase history for the current user from database.
     """
-    username = current_user.username
-    history = credit_purchase_history.get(username, [])
+    purchases = db.query(CreditPurchase).filter(
+        CreditPurchase.user_id == current_user.id
+    ).order_by(CreditPurchase.purchased_at.asc()).all()
+    
     # Return in chronological order (oldest first)
     return [
         CreditPurchaseHistoryItem(
-            purchased_at=item["purchased_at"],
-            amount=item["amount"],
-            balance_after=item["balance_after"],
+            purchased_at=purchase.purchased_at.isoformat() + "Z",
+            amount=purchase.amount,
+            balance_after=purchase.balance_after,
         )
-        for item in history
+        for purchase in purchases
     ]
 
 

@@ -1,7 +1,8 @@
-from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey, JSON
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from passlib.context import CryptContext
+from datetime import datetime
 import os
 
 Base = declarative_base()
@@ -19,6 +20,34 @@ class User(Base):
 
     def verify_password(self, password: str) -> bool:
         return pwd_context.verify(password, self.password_hash)
+
+
+class Analysis(Base):
+    __tablename__ = "analyses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scan_id = Column(String(100), unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    filename = Column(String(255), nullable=False)
+    analysis_data = Column(JSON, nullable=False)  # Store full analysis result as JSON
+    ai_analysis = Column(Text, nullable=True)  # Store AI analysis text
+    risk_score = Column(Integer, nullable=False)
+    risk_level = Column(String(50), nullable=False)
+    uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    user = relationship("User", backref="analyses")
+
+
+class CreditPurchase(Base):
+    __tablename__ = "credit_purchases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    amount = Column(Integer, nullable=False)  # Number of credits purchased
+    balance_after = Column(Integer, nullable=False)  # User's credit balance after purchase
+    purchased_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    user = relationship("User", backref="credit_purchases")
 
 
 def get_db_engine():

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 
 interface AIInsightProps {
@@ -76,21 +77,54 @@ export default function AIInsight({ scanId, riskScore, riskLevel, aiAnalysis, on
             <div className="mb-2 text-xs font-semibold tracking-wide text-cyan-300 uppercase">
               AI 심층 분석
             </div>
-            <h3 className="text-2xl font-bold mb-3">잠겨 있는 분석 결과</h3>
-            <p className="text-slate-200 mb-6 text-sm leading-relaxed">
-              보안 위협의 원인과 대응 방법을 한눈에 보고 싶다면 AI 심층 분석을 열어보세요.
+            <h3 className="text-2xl font-bold mb-3">AI 심층 분석 잠금 해제</h3>
+            <p className="text-slate-200 mb-4 text-sm leading-relaxed">
+              티켓을 구매하면 더 상세한 AI 분석 결과를 확인할 수 있습니다.
             </p>
-            <button
-              onClick={handleUnlock}
-              disabled={loading || userCredits === 0}
-              className="px-6 py-3 bg-cyan-500 text-slate-900 font-semibold rounded-md hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'AI 분석을 준비하고 있습니다...' : `티켓 1개로 분석 보기`}
-            </button>
-            {error && (
-              <p className="mt-4 text-sm text-red-300">
-                {error || '잠금 해제 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.'}
+            <div className="bg-slate-800/50 rounded-lg p-4 mb-6 border border-slate-700">
+              <p className="text-xs text-slate-300 mb-2">
+                <span className="font-semibold text-cyan-300">AI 심층 분석</span>에서는 다음 정보를 제공합니다:
               </p>
+              <ul className="text-xs text-slate-400 space-y-1 list-disc list-inside">
+                <li>악성코드의 상세 동작 원리 분석</li>
+                <li>피싱 이메일의 위조 기법 및 대응 방법</li>
+                <li>구체적인 보안 권장사항 및 제거 방법</li>
+                <li>유사한 위협 사례 및 참고 자료</li>
+              </ul>
+            </div>
+            {userCredits === 0 ? (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-300 mb-4">
+                  현재 보유 티켓: <span className="font-semibold text-red-300">0개</span>
+                </p>
+                <Link
+                  href="/credits"
+                  className="block w-full px-6 py-3 bg-cyan-500 text-slate-900 font-semibold rounded-md hover:bg-cyan-400 text-center transition-colors"
+                >
+                  티켓 구매하러 가기 →
+                </Link>
+                <p className="text-xs text-slate-400 text-center">
+                  시작 패키지: 5개 티켓 2,000원부터
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-300">
+                  보유 티켓: <span className="font-semibold text-cyan-300">{userCredits}개</span>
+                </p>
+                <button
+                  onClick={handleUnlock}
+                  disabled={loading}
+                  className="w-full px-6 py-3 bg-cyan-500 text-slate-900 font-semibold rounded-md hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {loading ? 'AI 분석을 준비하고 있습니다...' : `티켓 1개로 분석 보기`}
+                </button>
+                {error && (
+                  <p className="mt-2 text-sm text-red-300 text-center">
+                    {error}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -143,8 +177,31 @@ export default function AIInsight({ scanId, riskScore, riskLevel, aiAnalysis, on
           </ReactMarkdown>
         </div>
       ) : (
-        <div className="text-center py-12 text-slate-400">
-          분석 결과가 없습니다.
+        <div className="text-center py-12">
+          <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700 max-w-md mx-auto">
+            <p className="text-slate-300 mb-4">
+              아직 AI 심층 분석 결과가 없습니다.
+            </p>
+            <p className="text-sm text-slate-400 mb-6">
+              티켓을 구매하면 더 상세한 분석 결과를 확인할 수 있습니다.
+            </p>
+            {userCredits === 0 ? (
+              <Link
+                href="/credits"
+                className="inline-block px-6 py-3 bg-cyan-500 text-slate-900 font-semibold rounded-md hover:bg-cyan-400 transition-colors"
+              >
+                티켓 구매하러 가기 →
+              </Link>
+            ) : (
+              <button
+                onClick={handleUnlock}
+                disabled={loading}
+                className="px-6 py-3 bg-cyan-500 text-slate-900 font-semibold rounded-md hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? 'AI 분석 중...' : `티켓 1개로 분석 시작하기`}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

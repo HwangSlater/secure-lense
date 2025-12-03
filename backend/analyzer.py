@@ -13,6 +13,7 @@ import subprocess
 import threading
 import time
 import json
+from itertools import islice
 
 ALLOWED_EXTENSIONS = {'.exe', '.dll', '.pdf', '.docx', '.eml', '.zip'}
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
@@ -208,7 +209,7 @@ def analyze_binary(file_path: str) -> Dict:
         found_strings = set()
         for pattern in SUSPICIOUS_PATTERNS:
             matches = re.finditer(pattern, content, re.IGNORECASE)
-            for match in matches[:10]:  # Limit matches
+            for match in islice(matches, 10):  # Limit matches using islice
                 try:
                     found_string = match.group(0).decode('utf-8', errors='ignore')
                     if len(found_string) > 3:  # Filter very short matches
