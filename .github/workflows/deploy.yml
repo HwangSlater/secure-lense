@@ -69,13 +69,19 @@ jobs:
           sudo mkdir -p /tmp/securelens_uploads
           sudo chmod 777 /tmp/securelens_uploads
           
+          # Docker 공간 정리 (빌드 전 - 사용하지 않는 리소스만)
+          sudo docker system prune -f
+          sudo docker builder prune -f
+          
           # Backend와 Frontend만 재빌드하고 재시작
           # MySQL, Nginx는 서버에서 직접 초기 설정 시 생성되었으므로 건드리지 않음
-          sudo docker compose -f docker-compose.app.yml build --no-cache backend frontend
+          # --no-cache 제거: 빌드 캐시를 사용하여 공간 절약 및 빌드 속도 향상
+          sudo docker compose -f docker-compose.app.yml build backend frontend
           sudo docker compose -f docker-compose.app.yml up -d
           
-          # Clean up old images (unused images only)
+          # Clean up old images and build cache (unused only)
           sudo docker image prune -f
+          sudo docker builder prune -f
           EOF
 
       - name: Cleanup
