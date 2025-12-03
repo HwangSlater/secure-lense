@@ -69,17 +69,23 @@ jobs:
           sudo mkdir -p /tmp/securelens_uploads
           sudo chmod 777 /tmp/securelens_uploads
           
-          # Docker 공간 정리 (빌드 전 - 모든 빌드 캐시 삭제)
-          sudo docker builder prune -a -f
-          sudo docker system prune -f
+          # Docker 공간 정리 (빌드 전 - 모든 빌드 캐시 및 사용하지 않는 이미지 삭제)
+          sudo docker builder prune -a -f || true
+          sudo docker system prune -a -f || true
+          
+          # 디스크 공간 확인
+          df -h
           
           # Backend 빌드 (단계별로 진행하여 공간 절약)
-          sudo docker compose -f docker-compose.app.yml build backend
+          sudo docker compose -f docker-compose.app.yml build backend || (sudo docker builder prune -a -f && exit 1)
           sudo docker builder prune -a -f
           
           # Frontend 빌드
-          sudo docker compose -f docker-compose.app.yml build frontend
+          sudo docker compose -f docker-compose.app.yml build frontend || (sudo docker builder prune -a -f && exit 1)
           sudo docker builder prune -a -f
+          
+          # ClamAV는 이미지만 pull (이미 있으면 스킵)
+          sudo docker compose -f docker-compose.app.yml pull clamav || true
           
           # 컨테이너 시작
           sudo docker compose -f docker-compose.app.yml up -d
