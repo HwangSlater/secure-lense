@@ -85,8 +85,31 @@ class CreditChargeResponse(BaseModel):
     message: str
 
 
+class CreditPurchaseHistoryItem(BaseModel):
+    purchased_at: str
+    amount: int
+    balance_after: int
+
+
+class AnalysisDetailResponse(BaseModel):
+    scan_id: str
+    filename: str
+    risk_score: int
+    risk_level: str
+    clamav_result: Optional[str]
+    yara_matches: List[str]
+    shellcode_patterns: List[str]
+    suspicious_strings: List[str]
+    spearphishing_indicators: Optional[Dict]
+    file_deleted_at: str
+    uploaded_at: str
+
+
 # Store analysis results in memory (in production, use Redis or database)
 analysis_results: Dict[str, Dict] = {}
+
+# Store credit purchase history in memory per user
+credit_purchase_history: Dict[str, List[Dict]] = {}
 
 
 # Rate limiting helper
@@ -328,7 +351,7 @@ async def ai_analysis(
                 detail="AI 분석 서비스가 설정되지 않았습니다."
             )
         
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content(
             prompt,
             generation_config=genai.types.GenerationConfig(
@@ -402,6 +425,18 @@ async def charge_credits(
     current_user.credits += request.amount
     db.commit()
     db.refresh(current_user)
+
+    # Record purchase history in memory (per user)
+    username = current_user.username
+    if username not in credit_purchase_history:
+        credit_purchase_history[username] = []
+    credit_purchase_history[username].append(
+        {
+            "purchased_at": datetime.utcnow().isoformat() + "Z",
+            "amount": request.amount,
+            "balance_after": current_user.credits,
+        }
+    )
     
     return CreditChargeResponse(
         success=True,
@@ -428,6 +463,85 @@ async def get_analysis_history(
         })
     
     return {"analyses": user_analyses[-limit:]}
+
+
+@app.get("/analysis/{scan_id}", response_model=AnalysisDetailResponse)
+async def get_analysis_detail(
+    scan_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get detailed analysis result for a specific scan_id.
+    Uses in-memory storage; in production this should query a database.
+    """
+    if scan_id not in analysis_results:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="분석 결과를 찾을 수 없습니다."
+        )
+
+    stored = analysis_results[scan_id]
+    analysis = stored["analysis"]
+
+    # Reuse the same structure as file upload response
+    clamav_result = analysis.get("clamav_result")
+    yara_matches = analysis.get("yara_matches", [])
+    binary_analysis = analysis.get("binary_analysis", {})
+    shellcode_patterns = binary_analysis.get("shellcode_patterns", [])
+    suspicious_strings = binary_analysis.get("suspicious_strings", [])
+
+    spearphishing_indicators = None
+    if analysis.get("email_analysis"):
+        email_analysis = analysis["email_analysis"]
+        spearphishing_indicators = {
+            "spoofed_sender": email_analysis.get("spoofed_sender", False),
+            "phishing_keywords": email_analysis.get("phishing_keywords", []),
+            "suspicious_urls": email_analysis.get("suspicious_urls", []),
+            "has_double_extension": email_analysis.get("has_double_extension", False),
+            "header_analysis": email_analysis.get("header_analysis", {}),
+        }
+
+    # File deletion time is approximated as upload time + 1 hour
+    try:
+        uploaded_at = datetime.fromisoformat(stored["uploaded_at"])
+    except Exception:
+        uploaded_at = datetime.utcnow()
+    file_deleted_at = (uploaded_at + timedelta(hours=1)).isoformat() + "Z"
+
+    return AnalysisDetailResponse(
+        scan_id=scan_id,
+        filename=stored["filename"],
+        risk_score=analysis["risk_score"],
+        risk_level=analysis["risk_level"],
+        clamav_result=clamav_result,
+        yara_matches=yara_matches,
+        shellcode_patterns=shellcode_patterns,
+        suspicious_strings=suspicious_strings,
+        spearphishing_indicators=spearphishing_indicators,
+        file_deleted_at=file_deleted_at,
+        uploaded_at=stored["uploaded_at"],
+    )
+
+
+@app.get("/credits/history", response_model=List[CreditPurchaseHistoryItem])
+async def get_credit_history(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get credit purchase history for the current user.
+    This uses in-memory storage and will reset when the server restarts.
+    """
+    username = current_user.username
+    history = credit_purchase_history.get(username, [])
+    # Return in chronological order (oldest first)
+    return [
+        CreditPurchaseHistoryItem(
+            purchased_at=item["purchased_at"],
+            amount=item["amount"],
+            balance_after=item["balance_after"],
+        )
+        for item in history
+    ]
 
 
 if __name__ == "__main__":

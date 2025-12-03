@@ -22,11 +22,18 @@ class User(Base):
 
 
 def get_db_engine():
-    database_url = os.getenv("DATABASE_URL", "sqlite:///./securelens.db")
-    if database_url.startswith("sqlite"):
-        engine = create_engine(database_url, connect_args={"check_same_thread": False})
-    else:
-        engine = create_engine(database_url)
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL environment variable is required")
+    
+    # MySQL connection pool settings
+    engine = create_engine(
+        database_url,
+        pool_pre_ping=True,  # Verify connections before using
+        pool_recycle=3600,   # Recycle connections after 1 hour
+        pool_size=10,
+        max_overflow=20
+    )
     return engine
 
 

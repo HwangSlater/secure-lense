@@ -1,0 +1,66 @@
+version: '3.8'
+
+# Backend와 Frontend 애플리케이션 (변경 가능)
+# GitHub Actions가 이 파일을 사용하여 배포합니다
+
+services:
+  backend:
+    build: ./backend
+    container_name: securelens-backend
+    expose:
+      - "8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER:-securelens}:${MYSQL_PASSWORD:-securelens_password}@securelens-mysql:3306/${MYSQL_DATABASE:-securelens}?charset=utf8mb4
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - UPLOAD_DIR=/tmp/securelens_uploads
+      - JWT_SECRET=${JWT_SECRET}
+      - MAX_UPLOADS_PER_HOUR=10
+    volumes:
+      - ./backend:/app
+      - /tmp/securelens_uploads:/tmp/securelens_uploads
+    depends_on:
+      - clamav
+    # MySQL은 외부 컨테이너(securelens-mysql)이므로 depends_on에 포함하지 않음
+    # 같은 네트워크(securelens-network)에 연결되어 있으면 컨테이너 이름으로 접근 가능
+    networks:
+      - securelens-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: securelens-frontend
+    expose:
+      - "3000"
+    env_file:
+      - .env
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost}
+    depends_on:
+      - backend
+    networks:
+      - securelens-network
+    restart: unless-stopped
+
+  clamav:
+    image: clamav/clamav:latest
+    container_name: securelens-clamav
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav-data:/var/lib/clamav
+    networks:
+      - securelens-network
+    restart: unless-stopped
+
+volumes:
+  clamav-data:
+
+networks:
+  securelens-network:
+    external: true
+    name: securelens-network
+

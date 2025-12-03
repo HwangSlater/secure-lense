@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -50,15 +51,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
-          SecureLens 로그인
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="bg-slate-900/80 border border-slate-700 backdrop-blur-xl p-8 rounded-2xl shadow-2xl w-full max-w-md">
+        <h1 className="text-3xl font-bold text-center mb-8">
+          <Link href="/" className="logo-gradient text-4xl font-extrabold block mb-2">
+            SecureLens
+          </Link>
+          <span className="text-slate-200 text-base">보안 분석 콘솔 로그인</span>
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="username" className="block text-sm font-medium text-slate-200 mb-2">
               아이디
             </label>
             <input
@@ -68,12 +72,12 @@ export default function LoginPage() {
               onChange={(e) => setUsername(e.target.value)}
               placeholder="사용자 아이디 입력"
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-slate-600 bg-slate-900/60 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 placeholder:text-slate-500"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-slate-200 mb-2">
               비밀번호
             </label>
             <input
@@ -83,12 +87,12 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="비밀번호 입력"
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-slate-600 bg-slate-900/60 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 placeholder:text-slate-500"
             />
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="bg-red-900/40 border border-red-500/70 text-red-100 px-4 py-3 rounded-md text-sm">
               {error}
             </div>
           )}
@@ -96,17 +100,17 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-cyan-500 text-slate-900 font-semibold py-2 px-4 rounded-md hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? '로그인 중...' : '로그인'}
           </button>
         </form>
 
-        <div className="mt-8 p-4 bg-gray-50 rounded-md">
-          <p className="text-sm font-semibold text-gray-700 mb-2">테스트 계정:</p>
-          <div className="text-sm text-gray-600 space-y-1">
-            <p>👤 일반 사용자: user / user123 (티켓 0개)</p>
-            <p>👑 관리자: admin / admin123 (무제한)</p>
+        <div className="mt-8 p-4 bg-slate-900/70 border border-slate-700 rounded-md">
+          <p className="text-sm font-semibold text-slate-100 mb-2">테스트 계정 안내</p>
+          <div className="text-sm text-slate-300 space-y-1">
+            <p>일반 사용자: user / user123 (티켓 0개)</p>
+            <p>관리자: admin / admin123 (무제한)</p>
           </div>
         </div>
       </div>

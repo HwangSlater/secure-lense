@@ -1,0 +1,85 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy files to server
+        run: |
+          scp -i ~/.ssh/deploy_key -r . ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/securelens
+
+      - name: Update .env file on server (if needed)
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          cd ~/securelens
+          
+          # .env 파일이 이미 서버에 있으면 (초기 설정에서 생성됨) 그대로 사용
+          # 없으면 최소한의 설정만 추가 (MySQL 설정은 서버에서 직접 설정해야 함)
+          if [ ! -f .env ]; then
+            cat >> .env << EOL
+          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          UPLOAD_MAX_SIZE=52428800
+          MAX_UPLOADS_PER_HOUR=10
+          NEXT_PUBLIC_API_URL=http://${{ secrets.SSH_HOST }}
+          EOL
+          else
+            # 기존 .env 파일은 그대로 유지 (서버에서 초기 설정 시 생성됨)
+            # 필요한 경우에만 업데이트
+            if ! grep -q "GEMINI_API_KEY" .env; then
+              echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
+            fi
+            if ! grep -q "JWT_SECRET" .env; then
+              echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+            fi
+            if ! grep -q "NEXT_PUBLIC_API_URL" .env; then
+              echo "NEXT_PUBLIC_API_URL=http://${{ secrets.SSH_HOST }}" >> .env
+            fi
+          fi
+          EOF
+
+      - name: Copy docker-compose.app.yml
+        run: |
+          scp -i ~/.ssh/deploy_key docker-compose.app.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/securelens/
+
+      - name: Deploy on server
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+          cd ~/securelens
+          
+          # 필요한 디렉토리 생성
+          sudo mkdir -p /tmp/securelens_uploads
+          sudo chmod 777 /tmp/securelens_uploads
+          
+          # Backend와 Frontend만 재빌드하고 재시작
+          # MySQL, Nginx는 서버에서 직접 초기 설정 시 생성되었으므로 건드리지 않음
+          sudo docker compose -f docker-compose.app.yml build --no-cache backend frontend
+          sudo docker compose -f docker-compose.app.yml up -d
+          
+          # Clean up old images (unused images only)
+          sudo docker image prune -f
+          EOF
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key
+

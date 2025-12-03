@@ -2,8 +2,11 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (gcc and OpenSSL headers are required to build yara-python)
 RUN apt-get update && apt-get install -y \
+    gcc \
+    build-essential \
+    libssl-dev \
     yara \
     && rm -rf /var/lib/apt/lists/*
 
