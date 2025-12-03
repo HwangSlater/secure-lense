@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Backend와 Frontend 애플리케이션 (변경 가능)
 # GitHub Actions가 이 파일을 사용하여 배포합니다
 
