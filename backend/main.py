@@ -101,6 +101,7 @@ class AnalysisDetailResponse(BaseModel):
     shellcode_patterns: List[str]
     suspicious_strings: List[str]
     spearphishing_indicators: Optional[Dict]
+    ai_analysis: Optional[str] = None
     file_deleted_at: str
     uploaded_at: str
 
@@ -372,13 +373,34 @@ async def ai_analysis(
         model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content(
             prompt,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.7,
-                max_output_tokens=2000,
-            )
+            generation_config={
+                'temperature': 0.7,
+                'max_output_tokens': 2000,
+            }
         )
         
-        analysis_text = response.text
+        # Safely extract text from response
+        if not response:
+            raise ValueError("Gemini API returned empty response")
+        
+        # Try to get text from response
+        try:
+            analysis_text = response.text
+        except AttributeError:
+            # Fallback: try to get text from candidates
+            if hasattr(response, 'candidates') and response.candidates:
+                if hasattr(response.candidates[0], 'content') and response.candidates[0].content:
+                    if hasattr(response.candidates[0].content, 'parts') and response.candidates[0].content.parts:
+                        analysis_text = response.candidates[0].content.parts[0].text
+                    else:
+                        raise ValueError("No text content in response")
+                else:
+                    raise ValueError("No content in response candidates")
+            else:
+                raise ValueError("No candidates in response")
+        
+        if not analysis_text or len(analysis_text.strip()) == 0:
+            raise ValueError("Gemini API returned empty analysis text")
         
         # Only deduct credit and save after successful API call
         if current_user.role != "ADMIN":
@@ -392,6 +414,16 @@ async def ai_analysis(
     except HTTPException:
         # Re-raise HTTP exceptions (they already have proper error messages)
         raise
+    except ValueError as e:
+        # Handle value errors (empty response, etc.)
+        import traceback
+        print(f"Gemini API Value Error: {str(e)}")
+        print(traceback.format_exc())
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"AI 분석 응답을 처리하는 중 오류가 발생했습니다. 티켓은 차감되지 않았습니다. 잠시 후 다시 시도해주세요."
+        )
     except Exception as e:
         # Log the actual error for debugging
         import traceback
@@ -403,10 +435,23 @@ async def ai_analysis(
         
         # Handle API errors gracefully
         error_msg = str(e).lower()
-        if "429" in error_msg or "rate limit" in error_msg:
+        error_type = type(e).__name__
+        
+        # Check for specific Gemini API errors
+        if "403" in str(e) or "permission denied" in error_msg or "leaked" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="AI 분석 서비스 인증에 실패했습니다. 관리자에게 문의해주세요."
+            )
+        elif "429" in str(e) or "rate limit" in error_msg:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="AI 분석 서비스가 일시적으로 혼잡합니다. 잠시 후 다시 시도해주세요."
+            )
+        elif "api key" in error_msg or "authentication" in error_msg or "unauthorized" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="AI 분석 서비스 인증에 실패했습니다. 관리자에게 문의해주세요."
             )
         else:
             # Return error message instead of generic fallback
@@ -541,6 +586,7 @@ async def get_analysis_detail(
         shellcode_patterns=shellcode_patterns,
         suspicious_strings=suspicious_strings,
         spearphishing_indicators=spearphishing_indicators,
+        ai_analysis=db_analysis.ai_analysis,
         file_deleted_at=file_deleted_at,
         uploaded_at=uploaded_at.isoformat() + "Z",
     )

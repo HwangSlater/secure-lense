@@ -16,6 +16,7 @@ interface AnalysisData {
   shellcode_patterns: string[]
   suspicious_strings: string[]
   spearphishing_indicators: any
+  ai_analysis?: string | null
   file_deleted_at: string
   uploaded_at: string
 }
@@ -60,6 +61,10 @@ export default function ResultPage({ params }: PageProps) {
         }
 
         setData(json)
+        // 서버에 저장된 AI 심층 분석 결과가 있으면 함께 세팅
+        if (json.ai_analysis) {
+          setAiAnalysis(json.ai_analysis)
+        }
       } catch (err: any) {
         setError(err.message || '분석 결과를 불러오는 중 오류가 발생했습니다.')
       } finally {
