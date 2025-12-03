@@ -308,9 +308,8 @@ async def ai_analysis(
         db.commit()
         credits_used = 1
     
-    # Prepare Gemini prompt (Korean)
-    prompt = f"""
-당신은 20년 경력의 사이버 보안 전문가입니다. 일반인도 이해할 수 있게 쉽게 설명해주세요.
+    # Prepare Gemini prompt (Korean, no emojis)
+    prompt = f"""당신은 20년 경력의 사이버 보안 전문가입니다. 일반인도 이해할 수 있게 쉽게 설명해주세요.
 
 **분석 결과:**
 
@@ -325,41 +324,46 @@ async def ai_analysis(
 
 **작업:**
 
-다음 형식으로 응답해주세요:
+위 분석 결과를 바탕으로 다음 형식으로 상세하고 구체적인 분석을 제공해주세요. 이모티콘은 사용하지 마세요.
 
-## 🎯 위험도 평가
+## 위험도 평가
 
-[{analysis_data['risk_level']}] - 5단계 중 선택
+{analysis_data['risk_level']} - 위험도 점수 {analysis_data['risk_score']}/100에 대한 상세 평가
 
-## 📋 3줄 요약
+## 3줄 요약
 
-1. 이 파일의 정체가 무엇인지
-2. 어떤 위험이 있는지
-3. 왜 위험한지
+1. 이 파일의 정체가 무엇인지 (구체적으로)
+2. 어떤 위험이 있는지 (실제로 발생할 수 있는 피해)
+3. 왜 위험한지 (기술적 근거)
 
-## 🎣 스피어피싱 가능성
+## 스피어피싱 가능성
 
-[0-100%] - 이 파일이 스피어피싱 공격의 일부일 확률
+이 파일이 스피어피싱 공격의 일부일 확률을 0-100%로 평가하고 근거를 제시해주세요.
 
-## ⚠️ 발견된 위협 요소
+## 발견된 위협 요소
 
-- (구체적인 증거 나열)
+- ClamAV 탐지 결과에 대한 분석
+- YARA 규칙 매칭의 의미
+- 쉘코드 패턴이 발견되었다면 그 의미
+- 의심스러운 문자열의 위험성
+- 스피어피싱 지표가 있다면 상세 분석
 
-## ✅ 대응 방법
+## 대응 방법
 
-1. 즉시 해야 할 조치
-2. 예방을 위한 조치
+1. 즉시 해야 할 조치 (구체적인 단계)
+2. 예방을 위한 조치 (장기적 대응)
 
-## 📚 유사 공격 사례
+## 유사 공격 사례
 
-실제 발생했던 유사한 공격 1개를 간단히 소개 (예: "2024년 국세청 사칭 이메일 공격")
+실제 발생했던 유사한 공격 사례 1개를 간단히 소개해주세요.
 
-**주의사항:**
-
+**중요:**
 - 전문 용어 사용 시 괄호로 쉬운 설명 추가 (예: "쉘코드(악성 명령어)")
 - 위험도를 과장하거나 축소하지 말 것
 - 구체적인 증거 기반으로만 설명
 - 모든 설명은 한국어로 작성
+- 이모티콘 사용 금지
+- 일반적인 설명이 아닌 이 파일에 특화된 구체적인 분석 제공
 """
     
     try:
@@ -386,6 +390,11 @@ async def ai_analysis(
         db.commit()
         
     except Exception as e:
+        # Log the actual error for debugging
+        import traceback
+        print(f"Gemini API Error: {str(e)}")
+        print(traceback.format_exc())
+        
         # Handle API errors gracefully
         error_msg = str(e).lower()
         if "429" in error_msg or "rate limit" in error_msg:
@@ -394,33 +403,11 @@ async def ai_analysis(
                 detail="AI 분석 서비스가 일시적으로 혼잡합니다. 잠시 후 다시 시도해주세요."
             )
         else:
-            # Return generic safety message
-            analysis_text = f"""## 🎯 위험도 평가
-
-{analysis_data['risk_level']}
-
-## 📋 3줄 요약
-
-1. 이 파일은 여러 보안 엔진에서 위험 신호가 감지되었습니다
-2. 실행 시 시스템에 악영향을 줄 수 있습니다
-3. 의심스러운 패턴과 행위가 포함되어 있습니다
-
-## ⚠️ 발견된 위협 요소
-
-- 보안 엔진 탐지: {analysis_data.get('clamav_result', '없음')}
-- YARA 규칙 매칭: {len(analysis_data.get('yara_matches', []))}개
-- 의심스러운 패턴 발견
-
-## ✅ 대응 방법
-
-1. 이 파일을 실행하지 마세요
-2. 시스템을 완전히 검사하고 필요시 격리하세요
-3. 향후 유사한 파일을 받지 않도록 주의하세요
-
-## 📚 유사 공격 사례
-
-악성 코드가 이메일 첨부파일로 유포되는 사례는 지속적으로 발생하고 있습니다.
-"""
+            # Return error message instead of generic fallback
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"AI 분석 중 오류가 발생했습니다: {str(e)}"
+            )
     
     # Get updated credits
     db.refresh(current_user)
