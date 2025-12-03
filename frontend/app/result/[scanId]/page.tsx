@@ -45,7 +45,7 @@ export default function ResultPage({ params }: PageProps) {
     const fetchDetail = async () => {
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/analysis/${scanId}`,
+          `${process.env.NEXT_PUBLIC_API_URL || ''}/analysis/${scanId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

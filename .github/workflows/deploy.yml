@@ -39,7 +39,7 @@ jobs:
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           UPLOAD_MAX_SIZE=52428800
           MAX_UPLOADS_PER_HOUR=10
-          NEXT_PUBLIC_API_URL=http://${{ secrets.SSH_HOST }}
+          NEXT_PUBLIC_API_URL=
           EOL
           else
             # 기존 .env 파일은 그대로 유지 (서버에서 초기 설정 시 생성됨)
@@ -51,7 +51,10 @@ jobs:
               echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
             fi
             if ! grep -q "NEXT_PUBLIC_API_URL" .env; then
-              echo "NEXT_PUBLIC_API_URL=http://${{ secrets.SSH_HOST }}" >> .env
+              echo "NEXT_PUBLIC_API_URL=" >> .env
+            else
+              # 기존 값을 빈 문자열로 업데이트 (상대 경로 사용)
+              sed -i 's|NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=|' .env
             fi
           fi
           EOF

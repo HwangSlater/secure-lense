@@ -57,7 +57,7 @@ export default function CreditsPage() {
     try {
       const token = localStorage.getItem('token')
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/credits/charge`,
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/credits/charge`,
         {
           method: 'POST',
           headers: {

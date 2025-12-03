@@ -30,7 +30,8 @@ export default function AIInsight({ scanId, riskScore, riskLevel, aiAnalysis, on
 
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/analysis/ai`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || ''
+      const response = await fetch(`${apiUrl}/analysis/ai`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

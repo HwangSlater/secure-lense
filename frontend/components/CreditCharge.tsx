@@ -20,7 +20,8 @@ export default function CreditCharge({ onCreditsUpdated }: CreditChargeProps) {
 
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/credits/charge`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || ''
+      const response = await fetch(`${apiUrl}/credits/charge`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

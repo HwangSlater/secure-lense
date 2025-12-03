@@ -36,7 +36,7 @@ export default function MyPage() {
       try {
         // 분석 이력
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/analysis/history`,
+          `${process.env.NEXT_PUBLIC_API_URL || ''}/analysis/history`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -55,7 +55,7 @@ export default function MyPage() {
 
         // 결제 내역
         const creditsResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/credits/history`,
+          `${process.env.NEXT_PUBLIC_API_URL || ''}/credits/history`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

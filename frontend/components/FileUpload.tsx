@@ -98,7 +98,7 @@ export default function FileUpload({ onAnalysisComplete, onAiAnalysisLoaded }: F
           // Optional: auto-run Gemini AI deep analysis if requested
           if (autoAi && onAiAnalysisLoaded) {
             try {
-              const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/analysis/ai`
+              const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || ''}/analysis/ai`
               const aiResponse = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
@@ -142,7 +142,7 @@ export default function FileUpload({ onAnalysisComplete, onAiAnalysisLoaded }: F
         setUploading(false)
       }
 
-      xhr.open('POST', `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/files/upload`)
+      xhr.open('POST', `${process.env.NEXT_PUBLIC_API_URL || ''}/files/upload`)
       xhr.setRequestHeader('Authorization', `Bearer ${token}`)
       xhr.send(formData)
 
