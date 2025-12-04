@@ -206,58 +206,6 @@ export default function FileUpload({ onAnalysisComplete, onAiAnalysisLoaded }: F
       <p className="text-sm text-slate-300 mb-4">
         의심되는 이메일 첨부파일이나 실행 파일을 업로드하면, 여러 보안 엔진과 규칙으로 자동 분석합니다.
       </p>
-      <div className="mb-6 space-y-4">
-        <div className="flex items-start space-x-2">
-          <input
-            id="email-info-check"
-            type="checkbox"
-            className="mt-1 h-4 w-4 text-cyan-500 border-slate-500 rounded bg-slate-900"
-            checked={showEmailInputs}
-            onChange={(e) => setShowEmailInputs(e.target.checked)}
-          />
-          <div>
-            <label htmlFor="email-info-check" className="text-sm font-medium text-slate-100">
-              이메일 정보 추가 (선택사항)
-            </label>
-            <p className="text-xs text-slate-300 mt-1">
-              이메일 파일(.eml)인 경우, 제목과 내용을 입력하면 AI 분석 정확도가 향상됩니다.
-            </p>
-          </div>
-        </div>
-
-        {showEmailInputs && (
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700 space-y-3">
-            <div>
-              <label htmlFor="email-subject" className="block text-sm font-medium text-slate-200 mb-1">
-                이메일 제목
-              </label>
-              <input
-                id="email-subject"
-                type="text"
-                value={emailSubject}
-                onChange={(e) => setEmailSubject(e.target.value)}
-                placeholder="예: 긴급 보안 업데이트 안내"
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                disabled={uploading}
-              />
-            </div>
-            <div>
-              <label htmlFor="email-content" className="block text-sm font-medium text-slate-200 mb-1">
-                이메일 내용
-              </label>
-              <textarea
-                id="email-content"
-                value={emailContent}
-                onChange={(e) => setEmailContent(e.target.value)}
-                placeholder="이메일 본문 내용을 입력하세요..."
-                rows={4}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
-                disabled={uploading}
-              />
-            </div>
-          </div>
-        )}
-      </div>
 
       <div
         className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
@@ -326,28 +274,72 @@ export default function FileUpload({ onAnalysisComplete, onAiAnalysisLoaded }: F
         </div>
       )}
 
-      <div className="mt-4 flex items-start space-x-2">
-        <input
-          id="auto-ai"
-          type="checkbox"
-          className="mt-1 h-4 w-4 text-cyan-500 border-slate-500 rounded bg-slate-900"
-          checked={autoAi}
-          disabled={!canUseAi}
-          onChange={(e) => setAutoAi(e.target.checked)}
-        />
-        <div>
-          <label htmlFor="auto-ai" className="text-sm font-medium text-slate-100">
-            파일 업로드 후 Gemini AI 심층 분석까지 함께 실행
-          </label>
-          <p className="text-xs text-slate-300 mt-1">
-            AI 심층 분석 1회당 티켓 1개가 사용됩니다. 관리자이거나 보유 티켓이 1개 이상일 때만 선택할 수 있습니다.
-          </p>
-          {!canUseAi && (
-            <p className="text-xs text-red-300 mt-1">
-              보유 티켓이 없습니다. 티켓을 충전한 후 다시 시도해주세요.
+      <div className="mt-4 space-y-4">
+        <div className="flex items-start space-x-2">
+          <input
+            id="auto-ai"
+            type="checkbox"
+            className="mt-1 h-4 w-4 text-cyan-500 border-slate-500 rounded bg-slate-900"
+            checked={autoAi}
+            disabled={!canUseAi}
+            onChange={(e) => {
+              setAutoAi(e.target.checked)
+              // When auto AI is checked, show email inputs
+              if (e.target.checked) {
+                setShowEmailInputs(true)
+              }
+            }}
+          />
+          <div>
+            <label htmlFor="auto-ai" className="text-sm font-medium text-slate-100">
+              파일 업로드 후 Gemini AI 심층 분석까지 함께 실행
+            </label>
+            <p className="text-xs text-slate-300 mt-1">
+              AI 심층 분석 1회당 티켓 1개가 사용됩니다. 관리자이거나 보유 티켓이 1개 이상일 때만 선택할 수 있습니다.
             </p>
-          )}
+            {!canUseAi && (
+              <p className="text-xs text-red-300 mt-1">
+                보유 티켓이 없습니다. 티켓을 충전한 후 다시 시도해주세요.
+              </p>
+            )}
+          </div>
         </div>
+
+        {autoAi && showEmailInputs && (
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700 space-y-3">
+            <p className="text-xs text-slate-300 mb-2">
+              이메일 파일(.eml)인 경우, 제목과 내용을 입력하면 AI 분석 정확도가 향상됩니다.
+            </p>
+            <div>
+              <label htmlFor="email-subject" className="block text-sm font-medium text-slate-200 mb-1">
+                이메일 제목 (선택사항)
+              </label>
+              <input
+                id="email-subject"
+                type="text"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                placeholder="예: 긴급 보안 업데이트 안내"
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                disabled={uploading}
+              />
+            </div>
+            <div>
+              <label htmlFor="email-content" className="block text-sm font-medium text-slate-200 mb-1">
+                이메일 내용 (선택사항)
+              </label>
+              <textarea
+                id="email-content"
+                value={emailContent}
+                onChange={(e) => setEmailContent(e.target.value)}
+                placeholder="이메일 본문 내용을 입력하세요..."
+                rows={4}
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+                disabled={uploading}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

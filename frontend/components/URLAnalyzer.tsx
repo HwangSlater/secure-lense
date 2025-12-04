@@ -89,14 +89,9 @@ export default function URLAnalyzer({ onAnalysisComplete }: URLAnalyzerProps) {
     <div className="bg-slate-900/70 rounded-lg shadow-lg p-6 border border-slate-700">
       <div className="mb-4">
         <h2 className="text-2xl font-bold text-slate-50 mb-2">URL 분석</h2>
-        <p className="text-sm text-slate-300 mb-4">
+        <p className="text-sm text-slate-300">
           의심스러운 링크나 URL을 입력하여 위협 여부를 확인하세요. 이메일에 포함된 링크도 분석할 수 있습니다.
         </p>
-        <div className="mb-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
-          <p className="text-xs text-slate-300">
-            <span className="font-semibold text-cyan-300">참고:</span> 이메일 파일(.eml)인 경우, 제목과 내용을 입력하면 분석 정확도가 향상됩니다.
-          </p>
-        </div>
       </div>
 
       <div className="space-y-4">
