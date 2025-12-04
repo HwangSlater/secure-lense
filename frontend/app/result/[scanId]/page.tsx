@@ -154,62 +154,91 @@ export default function ResultPage({ params }: PageProps) {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-50 mb-2">분석 결과</h1>
-          {data.url ? (
-            <p className="text-sm text-slate-200">
-              URL: <span className="font-medium">{data.url}</span>
-            </p>
-          ) : (
-            <p className="text-sm text-slate-200">
-              파일명: <span className="font-medium">{data.filename}</span>
-            </p>
-          )}
-          <p className="text-xs text-slate-400 mt-1">
-            {data.analyzed_at
-              ? `분석 시각: ${new Date(data.analyzed_at).toLocaleString('ko-KR')}`
-              : `업로드 시각: ${new Date(data.uploaded_at).toLocaleString('ko-KR')}`}
-          </p>
-        </div>
+        {(() => {
+          // Check if this is a URL analysis (filename starts with http:// or https://, or has url field)
+          const isUrlAnalysis = data.url || (data.filename && (data.filename.startsWith('http://') || data.filename.startsWith('https://')))
+          const displayUrl = data.url || (isUrlAnalysis ? data.filename : null)
 
-        {data.url ? (
-          // URL Analysis Result
-          <div className="space-y-6">
-            {data.url ? (
-              <URLResult data={data as any} />
-            ) : data.url_analysis_result ? (
-              <URLResult data={data.url_analysis_result} />
-            ) : null}
-            <div className="bg-slate-900/70 rounded-lg shadow-lg p-6 border border-slate-700">
-              <h2 className="text-xl font-bold mb-4 text-slate-50">URL 분석 안내</h2>
-              <div className="space-y-3 text-sm text-slate-300">
-                <p>
-                  URL 분석은 URLScan.io를 통해 실시간으로 수행됩니다. 악성 URL로 탐지된 경우 즉시 접속을 중단하세요.
-                </p>
-                {(data.urlscan?.malicious || data.url_analysis_result?.urlscan_result?.verdicts?.overall?.malicious) && (
-                  <div className="p-3 bg-red-900/30 border border-red-700/50 rounded">
-                    <p className="text-red-300 font-semibold">
-                      ⚠️ 이 URL은 악성으로 탐지되었습니다. 접속하지 마세요.
-                    </p>
+          if (isUrlAnalysis) {
+            // URL Analysis Result
+            return (
+              <>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-50 mb-2">URL 분석 결과</h1>
+                  <p className="text-sm text-slate-200">
+                    URL: <span className="font-medium break-all">{displayUrl}</span>
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {data.analyzed_at
+                      ? `분석 시각: ${new Date(data.analyzed_at).toLocaleString('ko-KR')}`
+                      : `분석 시각: ${new Date(data.uploaded_at).toLocaleString('ko-KR')}`}
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  {data.url ? (
+                    <URLResult data={data as any} />
+                  ) : data.url_analysis_result ? (
+                    <URLResult data={data.url_analysis_result} />
+                  ) : (
+                    <URLResult data={{
+                      scan_id: data.scan_id,
+                      url: displayUrl || '',
+                      risk_score: data.risk_score,
+                      risk_level: data.risk_level,
+                      urlscan: data.urlscan,
+                      ip_info: data.ip_info,
+                      domain_info: data.domain_info,
+                      analyzed_at: data.analyzed_at || data.uploaded_at
+                    }} />
+                  )}
+                  <div className="bg-slate-900/70 rounded-lg shadow-lg p-6 border border-slate-700">
+                    <h2 className="text-xl font-bold mb-4 text-slate-50">URL 분석 안내</h2>
+                    <div className="space-y-3 text-sm text-slate-300">
+                      <p>
+                        URL 분석은 URLScan.io를 통해 실시간으로 수행됩니다. 악성 URL로 탐지된 경우 즉시 접속을 중단하세요.
+                      </p>
+                      {(data.urlscan?.malicious || data.url_analysis_result?.urlscan_result?.verdicts?.overall?.malicious) && (
+                        <div className="p-3 bg-red-900/30 border border-red-700/50 rounded">
+                          <p className="text-red-300 font-semibold">
+                            ⚠️ 이 URL은 악성으로 탐지되었습니다. 접속하지 마세요.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          // File Analysis Result
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <AnalysisResult data={data} />
-            <AIInsight
-              scanId={data.scan_id}
-              riskScore={data.risk_score}
-              riskLevel={data.risk_level}
-              filename={data.filename}
-              aiAnalysis={aiAnalysis}
-              onAnalysisLoaded={setAiAnalysis}
-            />
-          </div>
-        )}
+                </div>
+              </>
+            )
+          } else {
+            // File Analysis Result
+            return (
+              <>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-50 mb-2">분석 결과</h1>
+                  <p className="text-sm text-slate-200">
+                    파일명: <span className="font-medium">{data.filename}</span>
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    업로드 시각: {new Date(data.uploaded_at).toLocaleString('ko-KR')}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <AnalysisResult data={data} />
+                  <AIInsight
+                    scanId={data.scan_id}
+                    riskScore={data.risk_score}
+                    riskLevel={data.risk_level}
+                    filename={data.filename}
+                    aiAnalysis={aiAnalysis}
+                    onAnalysisLoaded={setAiAnalysis}
+                  />
+                </div>
+              </>
+            )
+          }
+        })()}
       </main>
     </div>
   )

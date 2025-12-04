@@ -116,6 +116,13 @@ class AnalysisDetailResponse(BaseModel):
     ai_analysis: Optional[str] = None
     file_deleted_at: str
     uploaded_at: str
+    # URL analysis fields
+    url: Optional[str] = None
+    urlscan: Optional[Dict] = None
+    ip_info: Optional[Dict] = None
+    domain_info: Optional[Dict] = None
+    analyzed_at: Optional[str] = None
+    url_analysis_result: Optional[Dict] = None
 
 
 class URLAnalysisRequest(BaseModel):
@@ -779,46 +786,77 @@ async def get_analysis_detail(
 
     analysis = db_analysis.analysis_data
 
-    # Reuse the same structure as file upload response
-    clamav_result = analysis.get("clamav_result")
-    yara_matches = analysis.get("yara_matches", [])
-    binary_analysis = analysis.get("binary_analysis", {})
-    shellcode_patterns = binary_analysis.get("shellcode_patterns", [])
-    suspicious_strings = binary_analysis.get("suspicious_strings", [])
-
-    spearphishing_indicators = None
-    if analysis.get("email_analysis"):
-        email_analysis = analysis["email_analysis"]
-        spearphishing_indicators = {
-            "spoofed_sender": email_analysis.get("spoofed_sender", False),
-            "phishing_keywords": email_analysis.get("phishing_keywords", []),
-            "suspicious_urls": email_analysis.get("suspicious_urls", []),
-            "has_double_extension": email_analysis.get("has_double_extension", False),
-            "header_analysis": email_analysis.get("header_analysis", {}),
-        }
-
-    # File deletion time is approximated as upload time + 1 hour
-    uploaded_at = db_analysis.uploaded_at
-    file_deleted_at = (uploaded_at + timedelta(hours=1)).isoformat() + "Z"
-
-    # Get external APIs data
-    external_apis = analysis.get("external_apis", {})
-
-    return AnalysisDetailResponse(
-        scan_id=scan_id,
-        filename=db_analysis.filename,
-        risk_score=analysis["risk_score"],
-        risk_level=analysis["risk_level"],
-        clamav_result=clamav_result,
-        yara_matches=yara_matches,
-        shellcode_patterns=shellcode_patterns,
-        suspicious_strings=suspicious_strings,
-        spearphishing_indicators=spearphishing_indicators,
-        external_apis=external_apis,
-        ai_analysis=db_analysis.ai_analysis,
-        file_deleted_at=file_deleted_at,
-        uploaded_at=uploaded_at.isoformat() + "Z",
+    # Check if this is a URL analysis
+    is_url_analysis = analysis.get("url") is not None or (
+        db_analysis.filename and 
+        (db_analysis.filename.startswith("http://") or db_analysis.filename.startswith("https://"))
     )
+
+    if is_url_analysis:
+        # URL analysis response
+        url_analysis_result = analysis.get("url_analysis_result", {})
+        return AnalysisDetailResponse(
+            scan_id=scan_id,
+            filename=db_analysis.filename,
+            risk_score=analysis.get("risk_score", 0),
+            risk_level=analysis.get("risk_level", "매우 낮음"),
+            clamav_result=None,
+            yara_matches=[],
+            shellcode_patterns=[],
+            suspicious_strings=[],
+            spearphishing_indicators=None,
+            external_apis=None,
+            ai_analysis=None,  # URL analysis doesn't support AI analysis
+            file_deleted_at="",  # Not applicable for URL analysis
+            uploaded_at=db_analysis.uploaded_at.isoformat() + "Z",
+            url=analysis.get("url") or db_analysis.filename,
+            urlscan=analysis.get("urlscan_result") or url_analysis_result.get("urlscan"),
+            ip_info=analysis.get("ip_info") or url_analysis_result.get("ip_info"),
+            domain_info=analysis.get("domain_info") or url_analysis_result.get("domain_info", {}),
+            analyzed_at=db_analysis.uploaded_at.isoformat() + "Z",
+            url_analysis_result=url_analysis_result,
+        )
+    else:
+        # File analysis response
+        clamav_result = analysis.get("clamav_result")
+        yara_matches = analysis.get("yara_matches", [])
+        binary_analysis = analysis.get("binary_analysis", {})
+        shellcode_patterns = binary_analysis.get("shellcode_patterns", [])
+        suspicious_strings = binary_analysis.get("suspicious_strings", [])
+
+        spearphishing_indicators = None
+        if analysis.get("email_analysis"):
+            email_analysis = analysis["email_analysis"]
+            spearphishing_indicators = {
+                "spoofed_sender": email_analysis.get("spoofed_sender", False),
+                "phishing_keywords": email_analysis.get("phishing_keywords", []),
+                "suspicious_urls": email_analysis.get("suspicious_urls", []),
+                "has_double_extension": email_analysis.get("has_double_extension", False),
+                "header_analysis": email_analysis.get("header_analysis", {}),
+            }
+
+        # File deletion time is approximated as upload time + 1 hour
+        uploaded_at = db_analysis.uploaded_at
+        file_deleted_at = (uploaded_at + timedelta(hours=1)).isoformat() + "Z"
+
+        # Get external APIs data
+        external_apis = analysis.get("external_apis", {})
+
+        return AnalysisDetailResponse(
+            scan_id=scan_id,
+            filename=db_analysis.filename,
+            risk_score=analysis["risk_score"],
+            risk_level=analysis["risk_level"],
+            clamav_result=clamav_result,
+            yara_matches=yara_matches,
+            shellcode_patterns=shellcode_patterns,
+            suspicious_strings=suspicious_strings,
+            spearphishing_indicators=spearphishing_indicators,
+            external_apis=external_apis,
+            ai_analysis=db_analysis.ai_analysis,
+            file_deleted_at=file_deleted_at,
+            uploaded_at=uploaded_at.isoformat() + "Z",
+        )
 
 
 @app.get("/credits/history", response_model=List[CreditPurchaseHistoryItem])
