@@ -1,0 +1,3 @@
+# Ignore entrypoint.sh from COPY . . to prevent permission issues
+entrypoint.sh
+
