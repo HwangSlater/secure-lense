@@ -16,6 +16,14 @@ from auth import create_access_token, get_current_user, ACCESS_TOKEN_EXPIRE_MINU
 from analyzer import analyze_file, UPLOAD_DIR, ensure_upload_dir, schedule_file_deletion
 import google.generativeai as genai
 
+# External API integration
+try:
+    from external_apis import analyze_url
+    EXTERNAL_APIS_AVAILABLE = True
+except ImportError:
+    EXTERNAL_APIS_AVAILABLE = False
+    print("Warning: external_apis module not available")
+
 app = FastAPI(title="SecureLens API")
 
 # CORS middleware
@@ -62,6 +70,7 @@ class FileUploadResponse(BaseModel):
     shellcode_patterns: List[str]
     suspicious_strings: List[str]
     spearphishing_indicators: Optional[Dict]
+    external_apis: Optional[Dict] = None
     file_deleted_at: str
 
 
@@ -101,9 +110,25 @@ class AnalysisDetailResponse(BaseModel):
     shellcode_patterns: List[str]
     suspicious_strings: List[str]
     spearphishing_indicators: Optional[Dict]
+    external_apis: Optional[Dict] = None
     ai_analysis: Optional[str] = None
     file_deleted_at: str
     uploaded_at: str
+
+
+class URLAnalysisRequest(BaseModel):
+    url: str
+
+
+class URLAnalysisResponse(BaseModel):
+    scan_id: str
+    url: str
+    risk_score: int
+    risk_level: str
+    urlscan: Optional[Dict] = None
+    ip_info: Optional[Dict] = None
+    domain_info: Optional[Dict] = None
+    analyzed_at: str
 
 
 # Note: Analysis results and credit purchase history are now stored in database
@@ -209,6 +234,7 @@ async def upload_file(
             "shellcode_patterns": analysis_result.get("binary_analysis", {}).get("shellcode_patterns", []),
             "suspicious_strings": analysis_result.get("binary_analysis", {}).get("suspicious_strings", []),
             "spearphishing_indicators": None,
+            "external_apis": analysis_result.get("external_apis", {}),
             "file_deleted_at": (datetime.utcnow() + timedelta(hours=1)).isoformat() + "Z"
         }
         
@@ -576,6 +602,9 @@ async def get_analysis_detail(
     uploaded_at = db_analysis.uploaded_at
     file_deleted_at = (uploaded_at + timedelta(hours=1)).isoformat() + "Z"
 
+    # Get external APIs data
+    external_apis = analysis.get("external_apis", {})
+
     return AnalysisDetailResponse(
         scan_id=scan_id,
         filename=db_analysis.filename,
@@ -586,6 +615,7 @@ async def get_analysis_detail(
         shellcode_patterns=shellcode_patterns,
         suspicious_strings=suspicious_strings,
         spearphishing_indicators=spearphishing_indicators,
+        external_apis=external_apis,
         ai_analysis=db_analysis.ai_analysis,
         file_deleted_at=file_deleted_at,
         uploaded_at=uploaded_at.isoformat() + "Z",

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import FileUpload from '@/components/FileUpload'
+import URLAnalyzer from '@/components/URLAnalyzer'
 import AnalysisResult from '@/components/AnalysisResult'
 import AIInsight from '@/components/AIInsight'
 
@@ -151,6 +152,11 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* URL Analyzer Section */}
+        <div className="mb-8">
+          <URLAnalyzer />
+        </div>
+
         {/* File Upload Section */}
         <div className="mb-8">
           <FileUpload

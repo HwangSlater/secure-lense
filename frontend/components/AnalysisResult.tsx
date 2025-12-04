@@ -11,6 +11,40 @@ interface AnalysisResultProps {
     shellcode_patterns: string[]
     suspicious_strings: string[]
     spearphishing_indicators: any
+    external_apis?: {
+      file_hashes?: {
+        md5?: string
+        sha1?: string
+        sha256?: string
+      }
+      virustotal?: {
+        detected: number
+        total: number
+        scan_date?: string
+        permalink?: string
+      }
+      malwarebazaar?: {
+        sha256_hash?: string
+        file_name?: string
+        file_type?: string
+        signature?: string
+        tags?: string[]
+        first_seen?: string
+      }
+      url_scans?: Array<{
+        url: string
+        domain: string
+        malicious: boolean
+        threat_score: number
+        tags: string[]
+      }>
+      ip_info?: Array<{
+        ip: string
+        country: string
+        city: string
+        isp: string
+      }>
+    }
   }
 }
 
@@ -289,6 +323,143 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
               </li>
             )}
           </ul>
+        </div>
+      )}
+
+      {/* External API Results */}
+      {data.external_apis && (
+        <div className="mt-6 pt-4 border-t border-slate-700">
+          <h3 className="text-lg font-semibold text-slate-200 mb-4">외부 위협 인텔리전스</h3>
+          
+          {/* File Hashes */}
+          {data.external_apis.file_hashes && (
+            <div className="mb-4 p-3 bg-slate-800/50 rounded border border-slate-700">
+              <span className="text-sm font-semibold text-slate-300">파일 해시:</span>
+              <div className="mt-2 space-y-1 text-xs font-mono text-slate-400">
+                {data.external_apis.file_hashes.md5 && (
+                  <div>MD5: <span className="text-cyan-300">{data.external_apis.file_hashes.md5}</span></div>
+                )}
+                {data.external_apis.file_hashes.sha1 && (
+                  <div>SHA1: <span className="text-cyan-300">{data.external_apis.file_hashes.sha1}</span></div>
+                )}
+                {data.external_apis.file_hashes.sha256 && (
+                  <div>SHA256: <span className="text-cyan-300">{data.external_apis.file_hashes.sha256}</span></div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* VirusTotal */}
+          {data.external_apis.virustotal && (
+            <div className="mb-4 p-4 bg-red-900/30 border border-red-700/50 rounded-md">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-semibold text-red-300">VirusTotal 검색 결과</span>
+                {data.external_apis.virustotal.permalink && (
+                  <a
+                    href={data.external_apis.virustotal.permalink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-red-200 hover:text-red-100 underline"
+                  >
+                    상세 보기 →
+                  </a>
+                )}
+              </div>
+              <div className="text-sm text-red-200">
+                <span className="font-semibold">{data.external_apis.virustotal.detected}</span> /{' '}
+                <span>{data.external_apis.virustotal.total}</span> 엔진이 악성으로 탐지
+                {data.external_apis.virustotal.detected > 0 && (
+                  <span className="ml-2 text-red-300 font-bold">
+                    ({Math.round((data.external_apis.virustotal.detected / data.external_apis.virustotal.total) * 100)}%)
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* MalwareBazaar */}
+          {data.external_apis.malwarebazaar && (
+            <div className="mb-4 p-4 bg-orange-900/30 border border-orange-700/50 rounded-md">
+              <span className="font-semibold text-orange-300">MalwareBazaar 샘플 정보</span>
+              <div className="mt-2 space-y-1 text-sm text-orange-200">
+                {data.external_apis.malwarebazaar.file_name && (
+                  <div>파일명: <span className="font-mono">{data.external_apis.malwarebazaar.file_name}</span></div>
+                )}
+                {data.external_apis.malwarebazaar.signature && (
+                  <div>시그니처: <span className="font-semibold">{data.external_apis.malwarebazaar.signature}</span></div>
+                )}
+                {data.external_apis.malwarebazaar.tags && data.external_apis.malwarebazaar.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {data.external_apis.malwarebazaar.tags.map((tag, idx) => (
+                      <span key={idx} className="px-2 py-1 bg-orange-800/50 rounded text-xs">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {data.external_apis.malwarebazaar.first_seen && (
+                  <div className="text-xs text-orange-300 mt-2">
+                    최초 발견: {data.external_apis.malwarebazaar.first_seen}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* URL Scans */}
+          {data.external_apis.url_scans && data.external_apis.url_scans.length > 0 && (
+            <div className="mb-4">
+              <span className="font-semibold text-slate-200">URL 스캔 결과:</span>
+              <div className="mt-2 space-y-2">
+                {data.external_apis.url_scans.map((scan, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-3 rounded border ${
+                      scan.malicious
+                        ? 'bg-red-900/30 border-red-700/50'
+                        : 'bg-slate-800/50 border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <a
+                        href={scan.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-cyan-300 hover:text-cyan-200 underline break-all"
+                      >
+                        {scan.url}
+                      </a>
+                      {scan.malicious && (
+                        <span className="px-2 py-1 bg-red-600 text-white text-xs rounded font-semibold">
+                          악성
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-400">
+                      도메인: {scan.domain} | 위협 점수: {scan.threat_score}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* IP Information */}
+          {data.external_apis.ip_info && data.external_apis.ip_info.length > 0 && (
+            <div className="mb-4">
+              <span className="font-semibold text-slate-200">IP 주소 정보:</span>
+              <div className="mt-2 space-y-2">
+                {data.external_apis.ip_info.map((ip, idx) => (
+                  <div key={idx} className="p-3 bg-slate-800/50 rounded border border-slate-700">
+                    <div className="text-sm font-mono text-cyan-300">{ip.ip}</div>
+                    <div className="text-xs text-slate-400 mt-1">
+                      {ip.country} {ip.city && `· ${ip.city}`} | ISP: {ip.isp}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

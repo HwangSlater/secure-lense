@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AnalysisResult from '@/components/AnalysisResult'
+import URLResult from '@/components/URLResult'
 import AIInsight from '@/components/AIInsight'
 
 interface AnalysisData {
@@ -19,6 +20,12 @@ interface AnalysisData {
   ai_analysis?: string | null
   file_deleted_at: string
   uploaded_at: string
+  // URL analysis fields
+  url?: string
+  urlscan?: any
+  ip_info?: any
+  domain_info?: any
+  analyzed_at?: string
 }
 
 interface PageProps {
@@ -120,25 +127,56 @@ export default function ResultPage({ params }: PageProps) {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-50 mb-2">분석 결과</h1>
-          <p className="text-sm text-slate-200">
-            파일명: <span className="font-medium">{data.filename}</span>
-          </p>
+          {data.url ? (
+            <p className="text-sm text-slate-200">
+              URL: <span className="font-medium">{data.url}</span>
+            </p>
+          ) : (
+            <p className="text-sm text-slate-200">
+              파일명: <span className="font-medium">{data.filename}</span>
+            </p>
+          )}
           <p className="text-xs text-slate-400 mt-1">
-            업로드 시각: {new Date(data.uploaded_at).toLocaleString('ko-KR')}
+            {data.analyzed_at
+              ? `분석 시각: ${new Date(data.analyzed_at).toLocaleString('ko-KR')}`
+              : `업로드 시각: ${new Date(data.uploaded_at).toLocaleString('ko-KR')}`}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <AnalysisResult data={data} />
-          <AIInsight
-            scanId={data.scan_id}
-            riskScore={data.risk_score}
-            riskLevel={data.risk_level}
-            filename={data.filename}
-            aiAnalysis={aiAnalysis}
-            onAnalysisLoaded={setAiAnalysis}
-          />
-        </div>
+        {data.url ? (
+          // URL Analysis Result
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <URLResult data={data as any} />
+            <div className="bg-slate-900/70 rounded-lg shadow-lg p-6 border border-slate-700">
+              <h2 className="text-xl font-bold mb-4 text-slate-50">URL 분석 안내</h2>
+              <div className="space-y-3 text-sm text-slate-300">
+                <p>
+                  URL 분석은 URLScan.io를 통해 실시간으로 수행됩니다. 악성 URL로 탐지된 경우 즉시 접속을 중단하세요.
+                </p>
+                {data.urlscan?.malicious && (
+                  <div className="p-3 bg-red-900/30 border border-red-700/50 rounded">
+                    <p className="text-red-300 font-semibold">
+                      ⚠️ 이 URL은 악성으로 탐지되었습니다. 접속하지 마세요.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          // File Analysis Result
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AnalysisResult data={data} />
+            <AIInsight
+              scanId={data.scan_id}
+              riskScore={data.risk_score}
+              riskLevel={data.risk_level}
+              filename={data.filename}
+              aiAnalysis={aiAnalysis}
+              onAnalysisLoaded={setAiAnalysis}
+            />
+          </div>
+        )}
       </main>
     </div>
   )

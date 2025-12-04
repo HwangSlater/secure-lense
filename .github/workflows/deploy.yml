@@ -37,6 +37,8 @@ jobs:
             cat >> .env << EOL
           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
           JWT_SECRET=${{ secrets.JWT_SECRET }}
+          VIRUSTOTAL_API_KEY=${{ secrets.VIRUSTOTAL_API_KEY }}
+          URLSCAN_API_KEY=${{ secrets.URLSCAN_API_KEY }}
           UPLOAD_MAX_SIZE=52428800
           MAX_UPLOADS_PER_HOUR=10
           NEXT_PUBLIC_API_URL=
@@ -49,6 +51,12 @@ jobs:
             fi
             if ! grep -q "JWT_SECRET" .env; then
               echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+            fi
+            if ! grep -q "VIRUSTOTAL_API_KEY" .env; then
+              echo "VIRUSTOTAL_API_KEY=${{ secrets.VIRUSTOTAL_API_KEY }}" >> .env
+            fi
+            if ! grep -q "URLSCAN_API_KEY" .env; then
+              echo "URLSCAN_API_KEY=${{ secrets.URLSCAN_API_KEY }}" >> .env
             fi
             if ! grep -q "NEXT_PUBLIC_API_URL" .env; then
               echo "NEXT_PUBLIC_API_URL=" >> .env

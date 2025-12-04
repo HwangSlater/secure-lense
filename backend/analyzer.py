@@ -15,6 +15,14 @@ import time
 import json
 from itertools import islice
 
+# External API integration
+try:
+    from external_apis import analyze_with_external_apis
+    EXTERNAL_APIS_AVAILABLE = True
+except ImportError:
+    EXTERNAL_APIS_AVAILABLE = False
+    print("Warning: external_apis module not available")
+
 ALLOWED_EXTENSIONS = {'.exe', '.dll', '.pdf', '.docx', '.eml', '.zip'}
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/tmp/securelens_uploads")
@@ -410,7 +418,8 @@ def calculate_risk_score(
     yara_matches: List[str],
     binary_analysis: Dict,
     email_analysis: Dict,
-    filename: str
+    filename: str,
+    external_apis: Optional[Dict] = None
 ) -> Tuple[int, str]:
     """Calculate risk score (0-100) and risk level"""
     score = 0
@@ -451,6 +460,29 @@ def calculate_risk_score(
     # Double extension in filename
     if re.search(r'\.(pdf|doc|docx|zip)\.(exe|bat|cmd)', filename, re.IGNORECASE):
         score += 15
+    
+    # External API results
+    if external_apis:
+        # VirusTotal detection
+        vt_result = external_apis.get("virustotal")
+        if vt_result and vt_result.get("detected", 0) > 0:
+            detected_ratio = vt_result["detected"] / max(vt_result.get("total", 1), 1)
+            if detected_ratio >= 0.5:  # 50%+ detection
+                score += 25
+            elif detected_ratio >= 0.2:  # 20%+ detection
+                score += 15
+            else:  # Any detection
+                score += 10
+        
+        # MalwareBazaar match
+        if external_apis.get("malwarebazaar"):
+            score += 20
+        
+        # URLScan malicious URLs
+        url_scans = external_apis.get("url_scans", [])
+        malicious_urls = sum(1 for scan in url_scans if scan.get("malicious", False))
+        if malicious_urls > 0:
+            score += min(15, malicious_urls * 5)
     
     # Cap at 100
     score = min(score, 100)
@@ -510,13 +542,27 @@ def analyze_file(file_path: str, original_filename: str) -> Dict:
         email_analysis = analyze_email(file_path)
         result["email_analysis"] = email_analysis
     
+    # External API analysis (async, non-blocking)
+    external_apis_result = {}
+    if EXTERNAL_APIS_AVAILABLE:
+        try:
+            # Read file content for URL/IP extraction
+            with open(file_path, 'rb') as f:
+                file_content = f.read()
+            external_apis_result = analyze_with_external_apis(file_path, file_content)
+            result["external_apis"] = external_apis_result
+        except Exception as e:
+            print(f"External API analysis error: {e}")
+            result["external_apis"] = {}
+    
     # Calculate risk score
     risk_score, risk_level = calculate_risk_score(
         detected,
         yara_matches,
         binary_analysis,
         email_analysis,
-        original_filename
+        original_filename,
+        external_apis_result if external_apis_result else None
     )
     result["risk_score"] = risk_score
     result["risk_level"] = risk_level
