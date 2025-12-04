@@ -45,6 +45,7 @@ export default function ResultPage({ params }: PageProps) {
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [activeTab, setActiveTab] = useState<'analysis' | 'ai'>('analysis')
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -224,16 +225,47 @@ export default function ResultPage({ params }: PageProps) {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <AnalysisResult data={data} />
-                  <AIInsight
-                    scanId={data.scan_id}
-                    riskScore={data.risk_score}
-                    riskLevel={data.risk_level}
-                    filename={data.filename}
-                    aiAnalysis={aiAnalysis}
-                    onAnalysisLoaded={setAiAnalysis}
-                  />
+                {/* 탭 네비게이션: 일반 분석 / AI 심층 분석 분리 */}
+                <div className="mt-6 border-b border-slate-800">
+                  <div className="flex space-x-4">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('analysis')}
+                      className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+                        activeTab === 'analysis'
+                          ? 'border-cyan-400 text-cyan-300'
+                          : 'border-transparent text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      일반 분석 결과
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('ai')}
+                      className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+                        activeTab === 'ai'
+                          ? 'border-cyan-400 text-cyan-300'
+                          : 'border-transparent text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      AI 심층 분석
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  {activeTab === 'analysis' ? (
+                    <AnalysisResult data={data} />
+                  ) : (
+                    <AIInsight
+                      scanId={data.scan_id}
+                      riskScore={data.risk_score}
+                      riskLevel={data.risk_level}
+                      filename={data.filename}
+                      aiAnalysis={aiAnalysis}
+                      onAnalysisLoaded={setAiAnalysis}
+                    />
+                  )}
                 </div>
               </>
             )

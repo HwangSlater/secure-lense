@@ -176,6 +176,27 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
   const gaugeColorClass = getRiskGaugeColor(data.risk_score)
   const friendlySummary = getUserFriendlySummary(data)
 
+  const hasClamav = !!data.clamav_result
+  const hasYara = data.yara_matches.length > 0
+  const hasShellcode = data.shellcode_patterns.length > 0
+  const hasSuspiciousStrings = data.suspicious_strings.length > 0
+  const hasSpear = !!data.spearphishing_indicators
+  const hasVirusTotal = !!data.external_apis?.virustotal
+  const hasMalwareBazaar = !!data.external_apis?.malwarebazaar
+  const hasUrlScans = !!(data.external_apis?.url_scans && data.external_apis.url_scans.length > 0)
+  const hasIpInfo = !!(data.external_apis?.ip_info && data.external_apis.ip_info.length > 0)
+
+  const hasSummaryTable =
+    hasClamav ||
+    hasYara ||
+    hasShellcode ||
+    hasSuspiciousStrings ||
+    hasSpear ||
+    hasVirusTotal ||
+    hasMalwareBazaar ||
+    hasUrlScans ||
+    hasIpInfo
+
   return (
     <div className="bg-slate-900/70 rounded-lg shadow-lg p-6 space-y-6 border border-slate-700">
       <div>
@@ -460,6 +481,126 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 엔진별 / 외부 API 요약 표 */}
+      {hasSummaryTable && (
+        <div className="mt-6 pt-4 border-t border-slate-700">
+          <h3 className="text-lg font-semibold text-slate-200 mb-3">엔진·외부 서비스별 요약</h3>
+          <p className="text-xs text-slate-400 mb-2">
+            각 분석 엔진과 외부 보안 서비스가 어떻게 판단했는지 한눈에 볼 수 있습니다.
+          </p>
+          <div className="overflow-x-auto rounded-lg border border-slate-700 bg-slate-900/60">
+            <table className="min-w-full text-xs text-left text-slate-200">
+              <thead className="bg-slate-800/80">
+                <tr>
+                  <th className="px-4 py-2 border-b border-slate-700">구분</th>
+                  <th className="px-4 py-2 border-b border-slate-700">도구 / 서비스</th>
+                  <th className="px-4 py-2 border-b border-slate-700">결과 요약</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hasClamav && (
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">ClamAV</td>
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
+                      {data.clamav_result
+                        ? `악성 시그니처 탐지: ${data.clamav_result}`
+                        : '알려진 악성 시그니처를 탐지하지 못했습니다.'}
+                    </td>
+                  </tr>
+                )}
+
+                {hasYara && (
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">YARA 규칙</td>
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
+                      {data.yara_matches.length}개 규칙에서 의심 패턴 감지
+                    </td>
+                  </tr>
+                )}
+
+                {hasShellcode && (
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">쉘코드 탐지</td>
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
+                      프로세스 제어를 시도하는 코드 패턴 {data.shellcode_patterns.length}개 발견
+                    </td>
+                  </tr>
+                )}
+
+                {hasSuspiciousStrings && (
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">의심 문자열 분석</td>
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
+                      의심스러운 문자열 {data.suspicious_strings.length}개 추출
+                    </td>
+                  </tr>
+                )}
+
+                {hasSpear && (
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">스피어피싱 지표</td>
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
+                      이메일 위조, 피싱 키워드, 의심 URL 등 메일 기반 공격 여부를 종합 평가합니다.
+                    </td>
+                  </tr>
+                )}
+
+                {hasVirusTotal && data.external_apis?.virustotal && (
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">VirusTotal</td>
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
+                      {data.external_apis.virustotal.detected} / {data.external_apis.virustotal.total} 엔진이 악성으로 탐지
+                      {data.external_apis.virustotal.detected > 0 &&
+                        ` (${Math.round(
+                          (data.external_apis.virustotal.detected / data.external_apis.virustotal.total) * 100
+                        )}% 탐지)`}
+                    </td>
+                  </tr>
+                )}
+
+                {hasMalwareBazaar && data.external_apis?.malwarebazaar && (
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">MalwareBazaar</td>
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
+                      {data.external_apis.malwarebazaar.signature
+                        ? `알려진 악성 샘플 시그니처: ${data.external_apis.malwarebazaar.signature}`
+                        : '해당 해시로 등록된 악성 샘플 정보를 조회했습니다.'}
+                    </td>
+                  </tr>
+                )}
+
+                {hasUrlScans && (
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">URL 스캔</td>
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
+                      파일 내부에서 탐지된 URL {data.external_apis?.url_scans?.length || 0}개에 대해 위험도를 평가했습니다.
+                    </td>
+                  </tr>
+                )}
+
+                {hasIpInfo && (
+                  <tr className="hover:bg-slate-800/40">
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">IP 정보 조회</td>
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
+                      의심 IP 주소에 대한 위치·ISP 정보를 기반으로 악성 인프라 여부를 점검했습니다.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
