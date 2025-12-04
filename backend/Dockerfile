@@ -22,16 +22,15 @@ RUN mkdir -p /var/lib/clamav /var/run/clamav /etc/clamav && \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy entrypoint script first with execute permission
-COPY --chmod=755 entrypoint.sh /app/entrypoint.sh
-
-# Copy rest of application code
+# Copy application code (entrypoint.sh is excluded via .dockerignore)
 COPY . .
 
-# Ensure entrypoint.sh has execute permission and fix line endings (CRLF -> LF)
-RUN chmod +x /app/entrypoint.sh && \
-    sed -i 's/\r$//' /app/entrypoint.sh && \
-    # Verify the file is executable
+# Copy entrypoint script last with execute permission and fix line endings
+COPY --chmod=755 entrypoint.sh /app/entrypoint.sh
+RUN sed -i 's/\r$//' /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh && \
+    # Verify the file is executable and has correct line endings
+    head -1 /app/entrypoint.sh | od -c | head -1 && \
     ls -la /app/entrypoint.sh
 
 # Create upload directory
