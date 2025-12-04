@@ -25,10 +25,17 @@ PHISHING_KEYWORDS = ["긴급", "계좌 확인", "비밀번호 변경", "당첨",
 
 # Shellcode patterns
 SHELLCODE_PATTERNS = [
-    rb'\x90\x90\x90\x90\x90\x90\x90\x90',  # NOP sled
-    rb'\xEB\xFE',  # JMP short
+    rb'\x90\x90\x90\x90\x90\x90\x90\x90',  # NOP sled (8+ bytes)
+    rb'\x90{6,}',  # NOP sled (6+ bytes)
+    rb'\xEB\xFE',  # JMP short (infinite loop)
     rb'\xE8\x00\x00\x00\x00',  # CALL
     rb'\x68\x00\x00\x00\x00',  # PUSH
+    rb'\x31\xC0',  # XOR EAX, EAX
+    rb'\x31\xDB',  # XOR EBX, EBX
+    rb'\x31\xC9',  # XOR ECX, ECX
+    rb'\x31\xD2',  # XOR EDX, EDX
+    rb'\x50\x53\x51\x52',  # PUSH sequence
+    rb'\x58\x5B\x59\x5A',  # POP sequence
 ]
 
 # Suspicious strings patterns
@@ -43,6 +50,22 @@ SUSPICIOUS_PATTERNS = [
     rb'HKEY_LOCAL_MACHINE',
     rb'http://[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}',
     rb'https?://[^\s<>"{}|\\^`\[\]]+',
+    rb'VirtualAlloc',
+    rb'VirtualProtect',
+    rb'CreateRemoteThread',
+    rb'WriteProcessMemory',
+    rb'URLDownloadToFile',
+    rb'WinExec',
+    rb'ShellExecute',
+    rb'CreateService',
+    rb'SetWindowsHookEx',
+    rb'LoadLibrary',
+    rb'GetProcAddress',
+    rb'CreateProcess',
+    rb'\.onion',
+    rb'tor2web',
+    rb'pastebin\.com',
+    rb'github\.com/[^\s]+\.exe',
 ]
 
 
@@ -197,13 +220,31 @@ def analyze_binary(file_path: str) -> Dict:
         
         # Detect shellcode patterns
         for pattern in SHELLCODE_PATTERNS:
-            matches = list(re.finditer(re.escape(pattern), content))
-            for match in matches[:5]:  # Limit to first 5 matches
-                offset = hex(match.start())
-                if b'\x90\x90' in pattern:
-                    result["shellcode_patterns"].append(f"NOP sled detected at offset {offset}")
-                elif b'\xEB\xFE' in pattern:
-                    result["shellcode_patterns"].append(f"JMP short detected at offset {offset}")
+            try:
+                if b'{' in pattern or b'}' in pattern:
+                    # Use regex pattern directly
+                    matches = list(re.finditer(pattern, content))
+                else:
+                    # Escape special characters
+                    matches = list(re.finditer(re.escape(pattern), content))
+                
+                for match in matches[:5]:  # Limit to first 5 matches
+                    offset = hex(match.start())
+                    if b'\x90' in pattern:
+                        result["shellcode_patterns"].append(f"NOP sled detected at offset {offset}")
+                    elif b'\xEB\xFE' in pattern:
+                        result["shellcode_patterns"].append(f"JMP short (infinite loop) detected at offset {offset}")
+                    elif b'\xE8' in pattern:
+                        result["shellcode_patterns"].append(f"CALL instruction detected at offset {offset}")
+                    elif b'\x68' in pattern:
+                        result["shellcode_patterns"].append(f"PUSH instruction detected at offset {offset}")
+                    elif b'\x31' in pattern:
+                        result["shellcode_patterns"].append(f"XOR register instruction detected at offset {offset}")
+                    elif b'\x50' in pattern or b'\x58' in pattern:
+                        result["shellcode_patterns"].append(f"PUSH/POP sequence detected at offset {offset}")
+            except Exception:
+                # Skip invalid patterns
+                pass
         
         # Detect suspicious strings
         found_strings = set()
@@ -226,6 +267,8 @@ def analyze_binary(file_path: str) -> Dict:
                 
                 # Check for suspicious sections
                 suspicious_sections = []
+                packed_section_names = ['.packed', '.upx', '.upx0', '.upx1', '.aspack', '.nspack', '.petite', '.mew']
+                
                 for section in pe.sections:
                     section_name = section.Name.decode('utf-8', errors='ignore').strip('\x00')
                     characteristics = section.Characteristics
@@ -233,6 +276,34 @@ def analyze_binary(file_path: str) -> Dict:
                     # Check for executable sections with write permission
                     if (characteristics & 0x20000000) and (characteristics & 0x80000000):
                         suspicious_sections.append(f"Section '{section_name}' has both EXECUTE and WRITE permissions")
+                    
+                    # Check for packed sections
+                    if any(packed_name in section_name.lower() for packed_name in packed_section_names):
+                        suspicious_sections.append(f"Section '{section_name}' suggests file may be packed")
+                
+                # Check for suspicious imports
+                suspicious_imports = []
+                if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
+                    suspicious_api_patterns = [
+                        'VirtualAlloc', 'VirtualProtect', 'CreateRemoteThread',
+                        'WriteProcessMemory', 'SetWindowsHookEx', 'URLDownloadToFile',
+                        'WinExec', 'ShellExecute', 'RegSetValue', 'CreateService'
+                    ]
+                    for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                        dll_name = entry.dll.decode('utf-8', errors='ignore').lower()
+                        for imp in entry.imports:
+                            if imp.name:
+                                api_name = imp.name.decode('utf-8', errors='ignore')
+                                if any(pattern.lower() in api_name.lower() for pattern in suspicious_api_patterns):
+                                    suspicious_imports.append(f"{dll_name}:{api_name}")
+                
+                # Add suspicious imports to anomalies if found
+                if suspicious_imports:
+                    suspicious_sections.append(f"Suspicious API imports detected: {', '.join(suspicious_imports[:5])}")
+                
+                # Check for unusually low section count (potential packed file)
+                if len(pe.sections) < 3:
+                    suspicious_sections.append(f"Unusually low section count ({len(pe.sections)}), may indicate packing")
                 
                 result["pe_header_anomalies"] = suspicious_sections
                 
@@ -356,9 +427,16 @@ def calculate_risk_score(
     if binary_analysis.get("shellcode_patterns"):
         score += 20
     
-    # Suspicious strings: +10 (if more than 5)
-    if len(binary_analysis.get("suspicious_strings", [])) > 5:
+    # Suspicious strings: +10 (if 3 or more), +15 (if 5 or more)
+    suspicious_strings_count = len(binary_analysis.get("suspicious_strings", []))
+    if suspicious_strings_count >= 5:
+        score += 15
+    elif suspicious_strings_count >= 3:
         score += 10
+    
+    # PE Header anomalies: +15 (if any suspicious sections found)
+    if binary_analysis.get("pe_header_anomalies"):
+        score += 15
     
     # Email-specific: spear-phishing indicators
     if email_analysis.get("spoofed_sender"):
