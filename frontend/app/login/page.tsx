@@ -74,10 +74,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="bg-slate-900/80 border border-slate-700 backdrop-blur-xl p-8 rounded-2xl shadow-2xl w-full max-w-md">
         <h1 className="text-3xl font-bold text-center mb-8">
-          <Link href="/" className="logo-gradient text-4xl font-extrabold block mb-2">
+          <Link href="/" className="logo-gradient text-4xl font-extrabold block">
             SecureLens
           </Link>
-          <span className="text-slate-200 text-base">보안 분석 콘솔 로그인</span>
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
