@@ -27,6 +27,9 @@ export default function FileUpload({ onAnalysisComplete, onAiAnalysisLoaded }: F
   const [error, setError] = useState('')
   const [autoAi, setAutoAi] = useState(false)
   const [canUseAi, setCanUseAi] = useState(true)
+  const [showEmailInputs, setShowEmailInputs] = useState(false)
+  const [emailSubject, setEmailSubject] = useState('')
+  const [emailContent, setEmailContent] = useState('')
 
   useEffect(() => {
     const role = localStorage.getItem('role')
@@ -95,17 +98,33 @@ export default function FileUpload({ onAnalysisComplete, onAiAnalysisLoaded }: F
           onAnalysisComplete(data)
           setProgress(100)
 
+          // Save email info to localStorage for later use in AI analysis
+          if (showEmailInputs && (emailSubject.trim() || emailContent.trim())) {
+            localStorage.setItem(`email_info_${data.scan_id}`, JSON.stringify({
+              subject: emailSubject.trim(),
+              content: emailContent.trim()
+            }))
+          }
+
           // Optional: auto-run Gemini AI deep analysis if requested
           if (autoAi && onAiAnalysisLoaded) {
             try {
               const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || ''}/analysis/ai`
+              const requestBody: any = { scan_id: data.scan_id }
+              if (emailSubject.trim()) {
+                requestBody.email_subject = emailSubject.trim()
+              }
+              if (emailContent.trim()) {
+                requestBody.email_content = emailContent.trim()
+              }
+              
               const aiResponse = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                   Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({ scan_id: data.scan_id }),
+                body: JSON.stringify(requestBody),
               })
 
               const aiData = await aiResponse.json()
@@ -121,24 +140,32 @@ export default function FileUpload({ onAnalysisComplete, onAiAnalysisLoaded }: F
                 setError(aiData.detail || 'AI 심층 분석을 사용하려면 분석 티켓이 필요합니다.')
               } else if (aiData.detail) {
                 setError(aiData.detail)
+              } else {
+                setError('AI 심층 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
               }
-            } catch {
+            } catch (err: any) {
               setError('AI 심층 분석 요청 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.')
             }
           }
         } else {
           try {
             const errorData = JSON.parse(xhr.responseText)
-            setError(errorData.detail || '파일 업로드 중 오류가 발생했습니다.')
+            setError(errorData.detail || '파일 업로드 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
           } catch {
-            setError('파일 업로드 중 오류가 발생했습니다.')
+            if (xhr.status === 0) {
+              setError('서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.')
+            } else if (xhr.status >= 500) {
+              setError('서버에서 문제가 발생했습니다. 잠시 후 다시 시도해주세요.')
+            } else {
+              setError('파일 업로드 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+            }
           }
         }
         setUploading(false)
       }
 
       xhr.onerror = () => {
-        setError('파일 업로드 중 오류가 발생했습니다.')
+        setError('서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.')
         setUploading(false)
       }
 
@@ -147,7 +174,7 @@ export default function FileUpload({ onAnalysisComplete, onAiAnalysisLoaded }: F
       xhr.send(formData)
 
     } catch (err: any) {
-      setError(err.message || '파일 업로드 중 오류가 발생했습니다.')
+      setError('파일 업로드 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
       setUploading(false)
     }
   }
@@ -179,10 +206,57 @@ export default function FileUpload({ onAnalysisComplete, onAiAnalysisLoaded }: F
       <p className="text-sm text-slate-300 mb-4">
         의심되는 이메일 첨부파일이나 실행 파일을 업로드하면, 여러 보안 엔진과 규칙으로 자동 분석합니다.
       </p>
-      <div className="mb-6 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
-        <p className="text-xs text-slate-300">
-          <span className="font-semibold text-cyan-300">참고:</span> 이메일 파일(.eml)인 경우, 제목과 내용을 입력하면 분석 정확도가 향상됩니다.
-        </p>
+      <div className="mb-6 space-y-4">
+        <div className="flex items-start space-x-2">
+          <input
+            id="email-info-check"
+            type="checkbox"
+            className="mt-1 h-4 w-4 text-cyan-500 border-slate-500 rounded bg-slate-900"
+            checked={showEmailInputs}
+            onChange={(e) => setShowEmailInputs(e.target.checked)}
+          />
+          <div>
+            <label htmlFor="email-info-check" className="text-sm font-medium text-slate-100">
+              이메일 정보 추가 (선택사항)
+            </label>
+            <p className="text-xs text-slate-300 mt-1">
+              이메일 파일(.eml)인 경우, 제목과 내용을 입력하면 AI 분석 정확도가 향상됩니다.
+            </p>
+          </div>
+        </div>
+
+        {showEmailInputs && (
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700 space-y-3">
+            <div>
+              <label htmlFor="email-subject" className="block text-sm font-medium text-slate-200 mb-1">
+                이메일 제목
+              </label>
+              <input
+                id="email-subject"
+                type="text"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                placeholder="예: 긴급 보안 업데이트 안내"
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                disabled={uploading}
+              />
+            </div>
+            <div>
+              <label htmlFor="email-content" className="block text-sm font-medium text-slate-200 mb-1">
+                이메일 내용
+              </label>
+              <textarea
+                id="email-content"
+                value={emailContent}
+                onChange={(e) => setEmailContent(e.target.value)}
+                placeholder="이메일 본문 내용을 입력하세요..."
+                rows={4}
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+                disabled={uploading}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div

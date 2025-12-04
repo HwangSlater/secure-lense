@@ -64,10 +64,27 @@ export default function ResultPage({ params }: PageProps) {
           }
         )
 
-        const json = await response.json()
+        // Check if response is JSON
+        let json
+        try {
+          json = await response.json()
+        } catch (parseErr) {
+          if (response.status === 404) {
+            setError('분석 결과를 찾을 수 없습니다. 업로드 후 일정 시간이 지나 자동 삭제되었을 수 있습니다.')
+            return
+          } else if (response.status >= 500) {
+            setError('서버에서 문제가 발생했습니다. 잠시 후 다시 시도해주세요.')
+            return
+          } else {
+            setError('분석 결과를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+            return
+          }
+        }
 
         if (!response.ok) {
-          throw new Error(json.detail || '분석 결과를 불러오는 중 오류가 발생했습니다.')
+          const errorMessage = json.detail || json.message || '분석 결과를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+          setError(errorMessage)
+          return
         }
 
         setData(json)
@@ -76,7 +93,16 @@ export default function ResultPage({ params }: PageProps) {
           setAiAnalysis(json.ai_analysis)
         }
       } catch (err: any) {
-        setError(err.message || '분석 결과를 불러오는 중 오류가 발생했습니다.')
+        // Show user-friendly error message
+        let errorMessage = '분석 결과를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+        
+        if (err.message && !err.message.includes('<!DOCTYPE') && !err.message.includes('Error:')) {
+          errorMessage = err.message
+        } else if (err.name === 'TypeError' && err.message.includes('fetch')) {
+          errorMessage = '서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.'
+        }
+        
+        setError(errorMessage)
       } finally {
         setLoading(false)
       }

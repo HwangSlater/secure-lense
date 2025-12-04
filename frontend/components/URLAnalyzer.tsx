@@ -38,14 +38,22 @@ export default function URLAnalyzer({ onAnalysisComplete }: URLAnalyzerProps) {
       // Check if response is JSON
       const contentType = response.headers.get('content-type')
       if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text()
-        throw new Error(`서버 응답 오류: ${text || '알 수 없는 오류'}`)
+        // Server returned non-JSON response (likely HTML error page)
+        if (response.status === 404) {
+          throw new Error('URL 분석 서비스를 찾을 수 없습니다. 잠시 후 다시 시도해주세요.')
+        } else if (response.status >= 500) {
+          throw new Error('서버에서 문제가 발생했습니다. 잠시 후 다시 시도해주세요.')
+        } else {
+          throw new Error('URL 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+        }
       }
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.detail || data.message || 'URL 분석에 실패했습니다.')
+        // Use user-friendly error message from backend, or provide default
+        const errorMessage = data.detail || data.message || 'URL 분석에 실패했습니다. 잠시 후 다시 시도해주세요.'
+        throw new Error(errorMessage)
       }
 
       // Navigate to result page
@@ -55,7 +63,17 @@ export default function URLAnalyzer({ onAnalysisComplete }: URLAnalyzerProps) {
         onAnalysisComplete(data)
       }
     } catch (err: any) {
-      setError(err.message || 'URL 분석 중 오류가 발생했습니다.')
+      // Show user-friendly error message
+      let errorMessage = 'URL 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+      
+      if (err.message) {
+        // Use the error message if it's already user-friendly
+        errorMessage = err.message
+      } else if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        errorMessage = '서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.'
+      }
+      
+      setError(errorMessage)
     } finally {
       setAnalyzing(false)
     }

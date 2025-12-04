@@ -18,13 +18,31 @@ export default function AIInsight({ scanId, riskScore, riskLevel, filename, aiAn
   const [error, setError] = useState('')
   const [locked, setLocked] = useState(true)
   const [userCredits, setUserCredits] = useState(0)
+  const [showEmailInputs, setShowEmailInputs] = useState(false)
+  const [emailSubject, setEmailSubject] = useState('')
+  const [emailContent, setEmailContent] = useState('')
 
   useEffect(() => {
     const credits = parseInt(localStorage.getItem('credits') || '0')
     const role = localStorage.getItem('role')
     setUserCredits(credits)
     setLocked(role !== 'ADMIN' && credits === 0)
-  }, [])
+    
+    // Load saved email info from localStorage if available
+    const savedEmailInfo = localStorage.getItem(`email_info_${scanId}`)
+    if (savedEmailInfo) {
+      try {
+        const emailInfo = JSON.parse(savedEmailInfo)
+        setEmailSubject(emailInfo.subject || '')
+        setEmailContent(emailInfo.content || '')
+        if (emailInfo.subject || emailInfo.content) {
+          setShowEmailInputs(true)
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+  }, [scanId])
 
   const handleUnlock = async () => {
     setError('')
@@ -33,23 +51,49 @@ export default function AIInsight({ scanId, riskScore, riskLevel, filename, aiAn
     try {
       const token = localStorage.getItem('token')
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || ''
+      const requestBody: any = { scan_id: scanId }
+      if (emailSubject.trim()) {
+        requestBody.email_subject = emailSubject.trim()
+      }
+      if (emailContent.trim()) {
+        requestBody.email_content = emailContent.trim()
+      }
+      
       const response = await fetch(`${apiUrl}/analysis/ai`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ scan_id: scanId }),
+        body: JSON.stringify(requestBody),
       })
 
-      const data = await response.json()
+      // Check if response is JSON
+      let data
+      try {
+        data = await response.json()
+      } catch (parseErr) {
+        if (response.status === 404) {
+          setError('AI 분석 서비스를 찾을 수 없습니다. 잠시 후 다시 시도해주세요.')
+          return
+        } else if (response.status >= 500) {
+          setError('서버에서 문제가 발생했습니다. 잠시 후 다시 시도해주세요.')
+          return
+        } else {
+          setError('AI 분석을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+          return
+        }
+      }
 
       if (!response.ok) {
         if (response.status === 402) {
           setError(data.detail || '분석 티켓이 필요합니다.')
           return
         }
-        throw new Error(data.detail || 'AI 분석을 불러오는 중 오류가 발생했습니다.')
+        // Use user-friendly error message from backend
+        const errorMessage = data.detail || data.message || 'AI 분석을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+        setError(errorMessage)
+        return
       }
 
       onAnalysisLoaded(data.analysis)
@@ -57,7 +101,17 @@ export default function AIInsight({ scanId, riskScore, riskLevel, filename, aiAn
       setUserCredits(data.remaining_credits)
       setLocked(false)
     } catch (err: any) {
-      setError(err.message || 'AI 분석을 불러오는 중 오류가 발생했습니다.')
+      // Show user-friendly error message
+      let errorMessage = 'AI 분석을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+      
+      if (err.message && !err.message.includes('<!DOCTYPE') && !err.message.includes('Error:')) {
+        // Use the error message if it's already user-friendly
+        errorMessage = err.message
+      } else if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        errorMessage = '서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.'
+      }
+      
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -113,6 +167,53 @@ export default function AIInsight({ scanId, riskScore, riskLevel, filename, aiAn
                 <p className="text-sm text-slate-300">
                   보유 티켓: <span className="font-semibold text-cyan-300">{userCredits}개</span>
                 </p>
+
+                {/* 이메일 정보 입력 (선택사항) */}
+                <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                  <div className="flex items-start space-x-2 mb-3">
+                    <input
+                      id="email-info-check-locked"
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 text-cyan-500 border-slate-500 rounded bg-slate-900"
+                      checked={showEmailInputs}
+                      onChange={(e) => setShowEmailInputs(e.target.checked)}
+                    />
+                    <label htmlFor="email-info-check-locked" className="text-sm font-medium text-slate-100">
+                      이메일 정보 추가 (선택사항)
+                    </label>
+                  </div>
+                  
+                  {showEmailInputs && (
+                    <div className="mt-3 space-y-3">
+                      <div>
+                        <label htmlFor="email-subject-locked" className="block text-xs text-slate-300 mb-1">
+                          이메일 제목
+                        </label>
+                        <input
+                          id="email-subject-locked"
+                          type="text"
+                          value={emailSubject}
+                          onChange={(e) => setEmailSubject(e.target.value)}
+                          placeholder="예: 긴급 보안 업데이트 안내"
+                          className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="email-content-locked" className="block text-xs text-slate-300 mb-1">
+                          이메일 내용
+                        </label>
+                        <textarea
+                          id="email-content-locked"
+                          value={emailContent}
+                          onChange={(e) => setEmailContent(e.target.value)}
+                          placeholder="이메일 본문 내용을 입력하세요..."
+                          rows={3}
+                          className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <button
                   onClick={handleUnlock}
@@ -215,6 +316,53 @@ export default function AIInsight({ scanId, riskScore, riskLevel, filename, aiAn
               </Link>
             ) : (
               <div className="space-y-3">
+                {/* 이메일 정보 입력 (선택사항) */}
+                <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                  <div className="flex items-start space-x-2 mb-3">
+                    <input
+                      id="email-info-check-unlocked"
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 text-cyan-500 border-slate-500 rounded bg-slate-900"
+                      checked={showEmailInputs}
+                      onChange={(e) => setShowEmailInputs(e.target.checked)}
+                    />
+                    <label htmlFor="email-info-check-unlocked" className="text-sm font-medium text-slate-100">
+                      이메일 정보 추가 (선택사항)
+                    </label>
+                  </div>
+                  
+                  {showEmailInputs && (
+                    <div className="mt-3 space-y-3">
+                      <div>
+                        <label htmlFor="email-subject-unlocked" className="block text-xs text-slate-300 mb-1">
+                          이메일 제목
+                        </label>
+                        <input
+                          id="email-subject-unlocked"
+                          type="text"
+                          value={emailSubject}
+                          onChange={(e) => setEmailSubject(e.target.value)}
+                          placeholder="예: 긴급 보안 업데이트 안내"
+                          className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="email-content-unlocked" className="block text-xs text-slate-300 mb-1">
+                          이메일 내용
+                        </label>
+                        <textarea
+                          id="email-content-unlocked"
+                          value={emailContent}
+                          onChange={(e) => setEmailContent(e.target.value)}
+                          placeholder="이메일 본문 내용을 입력하세요..."
+                          rows={3}
+                          className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   onClick={handleUnlock}
                   disabled={loading}
@@ -222,6 +370,11 @@ export default function AIInsight({ scanId, riskScore, riskLevel, filename, aiAn
                 >
                   {loading ? 'AI 분석 중...' : `티켓 1개로 분석 시작하기`}
                 </button>
+                {error && (
+                  <p className="mt-2 text-sm text-red-300 text-center">
+                    {error}
+                  </p>
+                )}
               </div>
             )}
           </div>

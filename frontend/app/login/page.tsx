@@ -30,10 +30,20 @@ export default function LoginPage() {
         body: formData,
       })
 
-      const data = await response.json()
+      let data
+      try {
+        data = await response.json()
+      } catch (parseErr) {
+        if (response.status >= 500) {
+          throw new Error('서버에서 문제가 발생했습니다. 잠시 후 다시 시도해주세요.')
+        } else {
+          throw new Error('로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+        }
+      }
 
       if (!response.ok) {
-        throw new Error(data.detail || '로그인에 실패했습니다.')
+        const errorMessage = data.detail || data.message || '아이디 또는 비밀번호가 올바르지 않습니다.'
+        throw new Error(errorMessage)
       }
 
       // Store token and user info
@@ -45,7 +55,16 @@ export default function LoginPage() {
       // Redirect to dashboard
       router.push('/dashboard')
     } catch (err: any) {
-      setError(err.message || '로그인 중 오류가 발생했습니다.')
+      // Show user-friendly error message
+      let errorMessage = '로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+      
+      if (err.message && !err.message.includes('<!DOCTYPE') && !err.message.includes('Error:')) {
+        errorMessage = err.message
+      } else if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        errorMessage = '서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.'
+      }
+      
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }

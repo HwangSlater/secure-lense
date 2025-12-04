@@ -104,7 +104,7 @@ class CreditPurchaseHistoryItem(BaseModel):
 
 class AnalysisDetailResponse(BaseModel):
     scan_id: str
-    filename: str
+    filename: Optional[str]  # Can be None for URL analysis (though we use URL as filename now)
     risk_score: int
     risk_level: str
     clamav_result: Optional[str]
@@ -363,10 +363,11 @@ async def analyze_url_endpoint(
         }
         
         # Store analysis result in database
+        # For URL analysis, use the URL as filename for consistency
         db_analysis = Analysis(
             scan_id=scan_id,
             user_id=current_user.id,
-            filename=None,  # URL analysis has no filename
+            filename=url,  # Use URL as filename for URL analysis
             analysis_data=analysis_data,
             risk_score=risk_score,
             risk_level=risk_level,

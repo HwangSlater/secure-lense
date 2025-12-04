@@ -28,7 +28,7 @@ class Analysis(Base):
     id = Column(Integer, primary_key=True, index=True)
     scan_id = Column(String(100), unique=True, index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    filename = Column(String(255), nullable=False)
+    filename = Column(String(255), nullable=True)  # Allow NULL for URL analysis
     analysis_data = Column(JSON, nullable=False)  # Store full analysis result as JSON
     ai_analysis = Column(Text, nullable=True)  # Store AI analysis text
     risk_score = Column(Integer, nullable=False)

@@ -45,13 +45,26 @@ export default function MyPage() {
           }
         )
 
-        const data = await response.json()
+        let data
+        try {
+          data = await response.json()
+        } catch (parseErr) {
+          if (response.status >= 500) {
+            setError('서버에서 문제가 발생했습니다. 잠시 후 다시 시도해주세요.')
+            return
+          } else if (response.status !== 404) {
+            setError('분석 이력을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+            return
+          }
+        }
 
         if (response.ok) {
-          setItems(data.analyses || [])
+          setItems(data?.analyses || [])
         } else if (response.status !== 404) {
           // 404는 "아직 이력이 없음"으로 간주
-          throw new Error(data.detail || '분석 이력을 불러오는 중 오류가 발생했습니다.')
+          const errorMessage = data?.detail || data?.message || '분석 이력을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+          setError(errorMessage)
+          return
         }
 
         // 결제 내역
@@ -64,16 +77,32 @@ export default function MyPage() {
           }
         )
 
-        const creditsText = await creditsResponse.text()
-        const creditsJson = creditsText ? JSON.parse(creditsText) : []
+        let creditsJson
+        try {
+          const creditsText = await creditsResponse.text()
+          creditsJson = creditsText ? JSON.parse(creditsText) : []
+        } catch (parseErr) {
+          creditsJson = []
+        }
 
         if (creditsResponse.ok) {
           setCreditHistory(creditsJson || [])
         } else if (creditsResponse.status !== 404) {
-          throw new Error(creditsJson.detail || '결제 내역을 불러오는 중 오류가 발생했습니다.')
+          const errorMessage = creditsJson?.detail || creditsJson?.message || '결제 내역을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+          setError(errorMessage)
+          return
         }
       } catch (err: any) {
-        setError(err.message || '마이페이지 정보를 불러오는 중 오류가 발생했습니다.')
+        // Show user-friendly error message
+        let errorMessage = '마이페이지 정보를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+        
+        if (err.message && !err.message.includes('<!DOCTYPE') && !err.message.includes('Error:')) {
+          errorMessage = err.message
+        } else if (err.name === 'TypeError' && err.message.includes('fetch')) {
+          errorMessage = '서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.'
+        }
+        
+        setError(errorMessage)
       } finally {
         setLoading(false)
       }
@@ -101,14 +130,29 @@ export default function MyPage() {
       )
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.detail || '삭제 중 오류가 발생했습니다.')
+        let errorMessage = '분석 결과 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.'
+        try {
+          const data = await response.json()
+          errorMessage = data.detail || data.message || errorMessage
+        } catch {
+          // If response is not JSON, use default message
+        }
+        throw new Error(errorMessage)
       }
 
       // 목록에서 제거
       setItems(items.filter((item) => item.scan_id !== scanId))
     } catch (err: any) {
-      setError(err.message || '삭제 중 오류가 발생했습니다.')
+      // Show user-friendly error message
+      let errorMessage = '분석 결과 삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+      
+      if (err.message && !err.message.includes('<!DOCTYPE') && !err.message.includes('Error:')) {
+        errorMessage = err.message
+      } else if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        errorMessage = '서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.'
+      }
+      
+      setError(errorMessage)
     } finally {
       setDeleting(null)
     }
