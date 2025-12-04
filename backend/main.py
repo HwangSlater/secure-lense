@@ -76,6 +76,8 @@ class FileUploadResponse(BaseModel):
 
 class AIAnalysisRequest(BaseModel):
     scan_id: str
+    email_subject: Optional[str] = None  # 선택사항: 이메일 제목
+    email_content: Optional[str] = None  # 선택사항: 이메일 내용
 
 
 class AIAnalysisResponse(BaseModel):
@@ -330,6 +332,63 @@ async def ai_analysis(
                 detail="AI 분석을 사용하려면 분석 티켓이 필요합니다. 충전하기에서 티켓을 구매해주세요."
             )
     
+    # Prepare external APIs information for prompt
+    external_apis_info = ""
+    if analysis_data.get('external_apis'):
+        ext_apis = analysis_data['external_apis']
+        external_apis_info = "\n- 외부 위협 인텔리전스:\n"
+        
+        # File hashes
+        if ext_apis.get('file_hashes'):
+            hashes = ext_apis['file_hashes']
+            external_apis_info += f"  - 파일 해시 (MD5: {hashes.get('md5', 'N/A')[:16]}..., SHA256: {hashes.get('sha256', 'N/A')[:32]}...)\n"
+        
+        # VirusTotal results
+        if ext_apis.get('virustotal'):
+            vt = ext_apis['virustotal']
+            if vt.get('detected'):
+                external_apis_info += f"  - VirusTotal: {vt.get('positives', 0)}/{vt.get('total', 0)}개 백신 엔진에서 악성코드 탐지\n"
+                if vt.get('scans'):
+                    detected_by = [name for name, result in vt['scans'].items() if result.get('detected')]
+                    if detected_by:
+                        external_apis_info += f"    탐지한 백신: {', '.join(detected_by[:5])}{' 등' if len(detected_by) > 5 else ''}\n"
+            else:
+                external_apis_info += "  - VirusTotal: 악성코드 탐지 없음\n"
+        
+        # MalwareBazaar results
+        if ext_apis.get('malwarebazaar'):
+            mb = ext_apis['malwarebazaar']
+            if mb.get('found'):
+                external_apis_info += f"  - MalwareBazaar: 악성코드 샘플로 확인됨\n"
+                if mb.get('malware_family'):
+                    external_apis_info += f"    악성코드 패밀리: {mb.get('malware_family')}\n"
+                if mb.get('signature'):
+                    external_apis_info += f"    시그니처: {mb.get('signature')}\n"
+            else:
+                external_apis_info += "  - MalwareBazaar: 알려진 악성코드 샘플 아님\n"
+        
+        # URL scan results (if any URLs were found in the file)
+        if ext_apis.get('url_scans'):
+            url_scans = ext_apis['url_scans']
+            if url_scans:
+                external_apis_info += f"  - URL 스캔 결과: {len(url_scans)}개 URL 분석됨\n"
+                for i, url_scan in enumerate(url_scans[:3], 1):  # 최대 3개만 표시
+                    if url_scan.get('urlscan_result'):
+                        urlscan = url_scan['urlscan_result']
+                        if urlscan.get('verdicts', {}).get('overall', {}).get('malicious'):
+                            external_apis_info += f"    URL {i}: 악성으로 판단됨 (위협 점수: {urlscan.get('verdicts', {}).get('overall', {}).get('score', 'N/A')})\n"
+    
+    # Prepare email subject/content info if provided
+    email_info = ""
+    if request.email_subject or request.email_content:
+        email_info = "\n- 이메일 정보 (사용자 제공):\n"
+        if request.email_subject:
+            email_info += f"  - 제목: {request.email_subject}\n"
+        if request.email_content:
+            # 내용이 너무 길면 일부만 표시
+            content_preview = request.email_content[:500] + ("..." if len(request.email_content) > 500 else "")
+            email_info += f"  - 내용: {content_preview}\n"
+    
     # Prepare Gemini prompt (Korean, no emojis)
     prompt = f"""당신은 20년 경력의 사이버 보안 전문가입니다. 일반인도 이해할 수 있게 쉽게 설명해주세요.
 
@@ -342,7 +401,7 @@ async def ai_analysis(
 - YARA 탐지 규칙: {', '.join(analysis_data.get('yara_matches', [])) if analysis_data.get('yara_matches') else '없음'}
 - 쉘코드 패턴: {', '.join(analysis_data.get('binary_analysis', {}).get('shellcode_patterns', [])) if analysis_data.get('binary_analysis', {}).get('shellcode_patterns') else '없음'}
 - 의심스러운 문자열: {', '.join(analysis_data.get('binary_analysis', {}).get('suspicious_strings', [])[:10]) if analysis_data.get('binary_analysis', {}).get('suspicious_strings') else '없음'}
-- 스피어피싱 지표: {json.dumps(analysis_data.get('email_analysis', {}), ensure_ascii=False, indent=2) if analysis_data.get('email_analysis') else '없음'}
+- 스피어피싱 지표: {json.dumps(analysis_data.get('email_analysis', {}), ensure_ascii=False, indent=2) if analysis_data.get('email_analysis') else '없음'}{external_apis_info}{email_info}
 
 **작업:**
 
@@ -369,6 +428,7 @@ async def ai_analysis(
 - 쉘코드 패턴이 발견되었다면 그 의미
 - 의심스러운 문자열의 위험성
 - 스피어피싱 지표가 있다면 상세 분석
+- 외부 위협 인텔리전스 결과(VirusTotal, MalwareBazaar 등)가 있다면 그 의미와 신뢰도
 
 ## 대응 방법
 
