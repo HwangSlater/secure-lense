@@ -101,8 +101,7 @@ jobs:
           sudo docker compose -f docker-compose.app.yml build frontend || (sudo docker builder prune -a -f && exit 1)
           sudo docker builder prune -a -f
           
-          # ClamAV는 이미지만 pull (이미 있으면 스킵)
-          sudo docker compose -f docker-compose.app.yml pull clamav || true
+          # ClamAV는 이제 Backend 컨테이너 내부에서 실행되므로 별도 pull 불필요
           
           # 컨테이너 시작
           sudo docker compose -f docker-compose.app.yml up -d

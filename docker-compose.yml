@@ -50,8 +50,7 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      clamav:
-        condition: service_started
+    # ClamAV는 이제 Backend 컨테이너 내부에서 실행됨
     networks:
       - securelens-network
 
@@ -70,17 +69,10 @@ services:
     networks:
       - securelens-network
 
-  clamav:
-    image: clamav/clamav:latest
-    ports:
-      - "3310:3310"
-    volumes:
-      - clamav-data:/var/lib/clamav
-    networks:
-      - securelens-network
+# ClamAV는 이제 Backend 컨테이너 내부에서 실행됨
+# 별도의 ClamAV 컨테이너가 필요 없음
 
 volumes:
-  clamav-data:
   mysql-data:
 
 networks:

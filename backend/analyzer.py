@@ -109,7 +109,12 @@ def scan_clamav(file_path: str) -> Tuple[Optional[str], bool]:
         sock.settimeout(SCAN_TIMEOUT)
         
         try:
-            sock.connect(('clamav', 3310))
+            # Try localhost first (if ClamAV is in same container), then fallback to 'clamav' hostname
+            try:
+                sock.connect(('localhost', 3310))
+            except (ConnectionRefusedError, OSError):
+                # Fallback to separate container
+                sock.connect(('clamav', 3310))
             
             # Send SCAN command
             sock.sendall(f'SCAN {file_path}\n'.encode())

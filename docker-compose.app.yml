@@ -18,10 +18,9 @@ services:
     volumes:
       - ./backend:/app
       - /tmp/securelens_uploads:/tmp/securelens_uploads
-    depends_on:
-      - clamav
     # MySQL은 외부 컨테이너(securelens-mysql)이므로 depends_on에 포함하지 않음
     # 같은 네트워크(securelens-network)에 연결되어 있으면 컨테이너 이름으로 접근 가능
+    # ClamAV는 이제 Backend 컨테이너 내부에서 실행됨
     networks:
       - securelens-network
     restart: unless-stopped
@@ -43,19 +42,8 @@ services:
       - securelens-network
     restart: unless-stopped
 
-  clamav:
-    image: clamav/clamav:latest
-    container_name: securelens-clamav
-    ports:
-      - "3310:3310"
-    volumes:
-      - clamav-data:/var/lib/clamav
-    networks:
-      - securelens-network
-    restart: unless-stopped
-
-volumes:
-  clamav-data:
+# ClamAV는 이제 Backend 컨테이너 내부에서 실행됨
+# 별도의 ClamAV 컨테이너가 필요 없음
 
 networks:
   securelens-network:
