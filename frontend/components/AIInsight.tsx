@@ -18,9 +18,6 @@ export default function AIInsight({ scanId, riskScore, riskLevel, filename, aiAn
   const [error, setError] = useState('')
   const [locked, setLocked] = useState(true)
   const [userCredits, setUserCredits] = useState(0)
-  const [emailSubject, setEmailSubject] = useState('')
-  const [emailContent, setEmailContent] = useState('')
-  const [showEmailFields, setShowEmailFields] = useState(false)
 
   useEffect(() => {
     const credits = parseInt(localStorage.getItem('credits') || '0')
@@ -36,21 +33,13 @@ export default function AIInsight({ scanId, riskScore, riskLevel, filename, aiAn
     try {
       const token = localStorage.getItem('token')
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || ''
-      const requestBody: any = { scan_id: scanId }
-      if (emailSubject.trim()) {
-        requestBody.email_subject = emailSubject.trim()
-      }
-      if (emailContent.trim()) {
-        requestBody.email_content = emailContent.trim()
-      }
-
       const response = await fetch(`${apiUrl}/analysis/ai`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({ scan_id: scanId }),
       })
 
       const data = await response.json()
@@ -124,49 +113,6 @@ export default function AIInsight({ scanId, riskScore, riskLevel, filename, aiAn
                 <p className="text-sm text-slate-300">
                   보유 티켓: <span className="font-semibold text-cyan-300">{userCredits}개</span>
                 </p>
-                
-                {/* 이메일 정보 입력 (선택사항) */}
-                <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="text-xs font-semibold text-cyan-300 mb-1">💡 분석 정확도 향상 팁</p>
-                      <p className="text-xs text-slate-400">
-                        이메일 파일인 경우, 제목과 내용을 추가하면 더 정확한 분석이 가능합니다.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setShowEmailFields(!showEmailFields)}
-                      className="text-xs text-cyan-300 hover:text-cyan-200 underline"
-                    >
-                      {showEmailFields ? '숨기기' : '추가하기'}
-                    </button>
-                  </div>
-                  
-                  {showEmailFields && (
-                    <div className="mt-3 space-y-2">
-                      <div>
-                        <label className="block text-xs text-slate-300 mb-1">이메일 제목 (선택사항)</label>
-                        <input
-                          type="text"
-                          value={emailSubject}
-                          onChange={(e) => setEmailSubject(e.target.value)}
-                          placeholder="예: 긴급 확인 필요"
-                          className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-slate-300 mb-1">이메일 내용 (선택사항)</label>
-                        <textarea
-                          value={emailContent}
-                          onChange={(e) => setEmailContent(e.target.value)}
-                          placeholder="이메일 본문 내용을 입력하세요..."
-                          rows={3}
-                          className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
 
                 <button
                   onClick={handleUnlock}
@@ -269,49 +215,6 @@ export default function AIInsight({ scanId, riskScore, riskLevel, filename, aiAn
               </Link>
             ) : (
               <div className="space-y-3">
-                {/* 이메일 정보 입력 (선택사항) */}
-                <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="text-xs font-semibold text-cyan-300 mb-1">💡 분석 정확도 향상 팁</p>
-                      <p className="text-xs text-slate-400">
-                        이메일 파일인 경우, 제목과 내용을 추가하면 더 정확한 분석이 가능합니다.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setShowEmailFields(!showEmailFields)}
-                      className="text-xs text-cyan-300 hover:text-cyan-200 underline"
-                    >
-                      {showEmailFields ? '숨기기' : '추가하기'}
-                    </button>
-                  </div>
-                  
-                  {showEmailFields && (
-                    <div className="mt-3 space-y-2">
-                      <div>
-                        <label className="block text-xs text-slate-300 mb-1">이메일 제목 (선택사항)</label>
-                        <input
-                          type="text"
-                          value={emailSubject}
-                          onChange={(e) => setEmailSubject(e.target.value)}
-                          placeholder="예: 긴급 확인 필요"
-                          className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-slate-300 mb-1">이메일 내용 (선택사항)</label>
-                        <textarea
-                          value={emailContent}
-                          onChange={(e) => setEmailContent(e.target.value)}
-                          placeholder="이메일 본문 내용을 입력하세요..."
-                          rows={3}
-                          className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 <button
                   onClick={handleUnlock}
                   disabled={loading}

@@ -176,9 +176,14 @@ export default function FileUpload({ onAnalysisComplete, onAiAnalysisLoaded }: F
   return (
     <div className="bg-slate-900/70 rounded-lg shadow-lg p-8 border border-slate-700">
       <h2 className="text-2xl font-bold mb-2 text-slate-50">파일 분석</h2>
-      <p className="text-sm text-slate-300 mb-6">
+      <p className="text-sm text-slate-300 mb-4">
         의심되는 이메일 첨부파일이나 실행 파일을 업로드하면, 여러 보안 엔진과 규칙으로 자동 분석합니다.
       </p>
+      <div className="mb-6 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+        <p className="text-xs text-slate-300">
+          <span className="font-semibold text-cyan-300">참고:</span> 이메일 파일(.eml)인 경우, 제목과 내용을 입력하면 분석 정확도가 향상됩니다.
+        </p>
+      </div>
 
       <div
         className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${

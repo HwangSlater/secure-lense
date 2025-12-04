@@ -288,6 +288,116 @@ async def upload_file(
         )
 
 
+# URL analysis endpoint
+@app.post("/url/analyze", response_model=URLAnalysisResponse)
+async def analyze_url_endpoint(
+    request_body: URLAnalysisRequest,
+    http_request: Request = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Analyze a URL using external APIs"""
+    if not EXTERNAL_APIS_AVAILABLE:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="URL 분석 기능이 현재 사용할 수 없습니다."
+        )
+    
+    # Rate limiting
+    client_ip = http_request.client.host if http_request else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="시간당 분석 제한(10개)을 초과했습니다. 1시간 후 다시 시도해주세요.",
+            headers={"Retry-After": "3600"}
+        )
+    
+    # Normalize URL (add http:// if missing)
+    url = request_body.url.strip()
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    
+    try:
+        # Analyze URL using external APIs
+        url_analysis_result = analyze_url(url)
+        
+        # Calculate risk score based on URLScan.io results
+        risk_score = 0
+        if url_analysis_result.get('urlscan'):
+            urlscan = url_analysis_result['urlscan']
+            if isinstance(urlscan, dict):
+                # Check if URLScan.io detected it as malicious
+                if urlscan.get('malicious'):
+                    threat_score = urlscan.get('threat_score', 0) or 0
+                    risk_score = min(100, 70 + threat_score)
+                else:
+                    # Check threat score (0-10 scale)
+                    threat_score = urlscan.get('threat_score', 0) or 0
+                    if threat_score > 0:
+                        risk_score = min(70, threat_score * 7)  # Convert 0-10 to 0-70
+        
+        # Determine risk level
+        if risk_score >= 86:
+            risk_level = "매우 높음"
+        elif risk_score >= 71:
+            risk_level = "높음"
+        elif risk_score >= 51:
+            risk_level = "보통"
+        elif risk_score >= 31:
+            risk_level = "낮음"
+        else:
+            risk_level = "매우 낮음"
+        
+        # Generate scan_id
+        scan_id = str(uuid.uuid4())
+        
+        # Prepare analysis data for database
+        analysis_data = {
+            "url": url,
+            "risk_score": risk_score,
+            "risk_level": risk_level,
+            "url_analysis_result": url_analysis_result,
+            "urlscan_result": url_analysis_result.get('urlscan'),
+            "ip_info": url_analysis_result.get('ip_info'),
+            "domain_info": url_analysis_result.get('domain_info', {})
+        }
+        
+        # Store analysis result in database
+        db_analysis = Analysis(
+            scan_id=scan_id,
+            user_id=current_user.id,
+            filename=None,  # URL analysis has no filename
+            analysis_data=analysis_data,
+            risk_score=risk_score,
+            risk_level=risk_level,
+            uploaded_at=datetime.utcnow()
+        )
+        db.add(db_analysis)
+        db.commit()
+        db.refresh(db_analysis)
+        
+        # Prepare response (urlscan field name matches URLAnalysisResponse model)
+        return URLAnalysisResponse(
+            scan_id=scan_id,
+            url=url,
+            risk_score=risk_score,
+            risk_level=risk_level,
+            urlscan=url_analysis_result.get('urlscan'),
+            ip_info=url_analysis_result.get('ip_info'),
+            domain_info=url_analysis_result.get('domain_info', {}),
+            analyzed_at=datetime.utcnow().isoformat() + "Z"
+        )
+        
+    except Exception as e:
+        import traceback
+        print(f"URL analysis error: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"URL 분석 중 오류가 발생했습니다: {str(e)}"
+        )
+
+
 # AI analysis endpoint
 @app.post("/analysis/ai", response_model=AIAnalysisResponse)
 async def ai_analysis(
