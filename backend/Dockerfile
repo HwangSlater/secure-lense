@@ -22,15 +22,17 @@ RUN mkdir -p /var/lib/clamav /var/run/clamav /etc/clamav && \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code (excluding entrypoint.sh to avoid permission issues)
+# Copy entrypoint script first with execute permission
 COPY --chmod=755 entrypoint.sh /app/entrypoint.sh
 
 # Copy rest of application code
 COPY . .
-# Ensure entrypoint.sh has execute permission (in case COPY . overwrote it)
+
+# Ensure entrypoint.sh has execute permission and fix line endings (CRLF -> LF)
 RUN chmod +x /app/entrypoint.sh && \
-    # Fix line endings if needed (convert CRLF to LF)
-    sed -i 's/\r$//' /app/entrypoint.sh
+    sed -i 's/\r$//' /app/entrypoint.sh && \
+    # Verify the file is executable
+    ls -la /app/entrypoint.sh
 
 # Create upload directory
 RUN mkdir -p /tmp/securelens_uploads
