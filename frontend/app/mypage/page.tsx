@@ -14,7 +14,8 @@ interface HistoryItem {
 
 // Check if an item is a URL analysis
 const isUrlAnalysis = (filename: string): boolean => {
-  return filename && (filename.startsWith('http://') || filename.startsWith('https://'))
+  if (!filename) return false
+  return filename.startsWith('http://') || filename.startsWith('https://')
 }
 
 interface CreditHistoryItem {
