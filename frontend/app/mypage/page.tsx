@@ -24,6 +24,7 @@ export default function MyPage() {
   const [creditHistory, setCreditHistory] = useState<CreditHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [deleting, setDeleting] = useState<string | null>(null)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -80,6 +81,38 @@ export default function MyPage() {
 
     fetchHistory()
   }, [router])
+
+  const handleDelete = async (scanId: string) => {
+    if (!confirm('정말 이 분석 결과를 삭제하시겠습니까?')) {
+      return
+    }
+
+    setDeleting(scanId)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/analysis/${scanId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.detail || '삭제 중 오류가 발생했습니다.')
+      }
+
+      // 목록에서 제거
+      setItems(items.filter((item) => item.scan_id !== scanId))
+    } catch (err: any) {
+      setError(err.message || '삭제 중 오류가 발생했습니다.')
+    } finally {
+      setDeleting(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -143,13 +176,33 @@ export default function MyPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-slate-900/70 divide-y divide-slate-700">
-                  {items.map((item) => (
-                    <tr key={item.scan_id} className="hover:bg-slate-800/50">
-                    <td className="px-4 py-3 text-sm text-cyan-400">
-                      <Link href={`/result/${item.scan_id}`} className="hover:underline">
-                          {item.filename}
-                        </Link>
-                      </td>
+                  {items.map((item) => {
+                    // 파일명이 길면 앞부분만 표시하고 확장자는 유지
+                    const getDisplayFilename = (filename: string, maxLength: number = 20) => {
+                      if (filename.length <= maxLength) {
+                        return filename
+                      }
+                      const lastDotIndex = filename.lastIndexOf('.')
+                      if (lastDotIndex === -1) {
+                        // 확장자가 없으면 그냥 자름
+                        return filename.substring(0, maxLength - 4) + '....'
+                      }
+                      const nameWithoutExt = filename.substring(0, lastDotIndex)
+                      const extension = filename.substring(lastDotIndex)
+                      const maxNameLength = maxLength - extension.length - 4 // "...." + 확장자
+                      if (nameWithoutExt.length <= maxNameLength) {
+                        return filename
+                      }
+                      return nameWithoutExt.substring(0, maxNameLength) + '....' + extension
+                    }
+
+                    return (
+                      <tr key={item.scan_id} className="hover:bg-slate-800/50">
+                        <td className="px-4 py-3 text-sm text-cyan-400">
+                          <Link href={`/result/${item.scan_id}`} className="hover:underline" title={item.filename}>
+                            {getDisplayFilename(item.filename)}
+                          </Link>
+                        </td>
                       <td className="px-4 py-3 text-sm text-slate-200">
                         {item.risk_score}/100 · {item.risk_level}
                       </td>
@@ -157,15 +210,25 @@ export default function MyPage() {
                         {new Date(item.uploaded_at).toLocaleString('ko-KR')}
                       </td>
                       <td className="px-4 py-3 text-right text-sm">
-                      <Link
-                        href={`/result/${item.scan_id}`}
-                          className="inline-flex items-center px-3 py-1.5 border border-slate-600 rounded-md text-slate-200 hover:bg-slate-800/80"
-                        >
-                          상세 보기
-                        </Link>
+                        <div className="flex items-center justify-end space-x-2">
+                          <Link
+                            href={`/result/${item.scan_id}`}
+                            className="inline-flex items-center px-3 py-1.5 border border-slate-600 rounded-md text-slate-200 hover:bg-slate-800/80"
+                          >
+                            상세 보기
+                          </Link>
+                          <button
+                            onClick={() => handleDelete(item.scan_id)}
+                            disabled={deleting === item.scan_id}
+                            className="inline-flex items-center px-3 py-1.5 border border-red-600 rounded-md text-red-300 hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {deleting === item.scan_id ? '삭제 중...' : '삭제'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

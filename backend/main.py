@@ -615,6 +615,34 @@ async def get_analysis_history(
     return {"analyses": user_analyses}
 
 
+@app.delete("/analysis/{scan_id}")
+async def delete_analysis(
+    scan_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete analysis result"""
+    db_analysis = db.query(Analysis).filter(Analysis.scan_id == scan_id).first()
+    if not db_analysis:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="분석 결과를 찾을 수 없습니다."
+        )
+    
+    # Check if user owns this analysis
+    if db_analysis.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="이 분석 결과를 삭제할 권한이 없습니다."
+        )
+    
+    # Delete from database
+    db.delete(db_analysis)
+    db.commit()
+    
+    return {"message": "분석 결과가 삭제되었습니다."}
+
+
 @app.get("/analysis/{scan_id}", response_model=AnalysisDetailResponse)
 async def get_analysis_detail(
     scan_id: str,
