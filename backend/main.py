@@ -145,6 +145,8 @@ class URLAnalysisRequest(BaseModel):
 
 
 class URLAnalysisResponse(BaseModel):
+    model_config = ConfigDict(serialize_none=True)  # Include None values in JSON
+    
     scan_id: str
     url: str
     risk_score: int
@@ -776,20 +778,42 @@ async def ai_analysis(
             raise ValueError("Gemini API returned empty response")
         
         # Try to get text from response
+        # Handle both simple text responses and multi-part responses
+        analysis_text = None
         try:
+            # First, try the simple text accessor
             analysis_text = response.text
-        except AttributeError:
-            # Fallback: try to get text from candidates
-            if hasattr(response, 'candidates') and response.candidates:
+        except (AttributeError, ValueError) as e:
+            # If that fails, try to get text from parts
+            if hasattr(response, 'parts') and response.parts:
+                # Direct parts access
+                text_parts = []
+                for part in response.parts:
+                    if hasattr(part, 'text') and part.text:
+                        text_parts.append(part.text)
+                if text_parts:
+                    analysis_text = ''.join(text_parts)
+            elif hasattr(response, 'candidates') and response.candidates:
+                # Fallback: try to get text from candidates
                 if hasattr(response.candidates[0], 'content') and response.candidates[0].content:
                     if hasattr(response.candidates[0].content, 'parts') and response.candidates[0].content.parts:
-                        analysis_text = response.candidates[0].content.parts[0].text
+                        text_parts = []
+                        for part in response.candidates[0].content.parts:
+                            if hasattr(part, 'text') and part.text:
+                                text_parts.append(part.text)
+                        if text_parts:
+                            analysis_text = ''.join(text_parts)
+                        else:
+                            raise ValueError("No text content in response parts")
                     else:
-                        raise ValueError("No text content in response")
+                        raise ValueError("No parts in response content")
                 else:
                     raise ValueError("No content in response candidates")
             else:
-                raise ValueError("No candidates in response")
+                raise ValueError(f"Unable to extract text from response: {str(e)}")
+        
+        if not analysis_text:
+            raise ValueError("No text content found in response")
         
         if not analysis_text or len(analysis_text.strip()) == 0:
             raise ValueError("Gemini API returned empty analysis text")
@@ -984,9 +1008,17 @@ async def get_analysis_detail(
         # URL analysis response
         url_analysis_result = analysis.get("url_analysis_result", {})
         # Ensure virustotal is included in url_analysis_result if it exists in analysis_data
-        virustotal_data = analysis.get("virustotal_result") or url_analysis_result.get("virustotal")
+        # Try multiple sources to get virustotal data
+        virustotal_data = (
+            analysis.get("virustotal_result") or 
+            url_analysis_result.get("virustotal") or 
+            None
+        )
         # Always include virustotal in url_analysis_result for consistency (even if None)
-        url_analysis_result["virustotal"] = virustotal_data
+        if "virustotal" not in url_analysis_result:
+            url_analysis_result["virustotal"] = virustotal_data
+        elif url_analysis_result.get("virustotal") is None and virustotal_data is not None:
+            url_analysis_result["virustotal"] = virustotal_data
         
         # Build response dict explicitly to ensure all fields are included
         response_dict = {

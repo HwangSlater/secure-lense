@@ -119,15 +119,15 @@ export default function URLResult({ data }: URLResultProps) {
       </div>
 
       {/* VirusTotal Results */}
-      {data.virustotal && (
+      {data.virustotal !== undefined && (
         <div className={`p-4 rounded-md border ${
-          data.virustotal.detected > 0
+          data.virustotal && data.virustotal.detected > 0
             ? 'bg-red-900/30 border-red-700/50'
             : 'bg-slate-800/50 border-slate-700'
         }`}>
           <div className="flex items-center justify-between mb-3">
             <span className="font-semibold text-slate-200">VirusTotal 분석 결과</span>
-            {data.virustotal.permalink && (
+            {data.virustotal && data.virustotal.permalink && (
               <a
                 href={data.virustotal.permalink}
                 target="_blank"
@@ -139,36 +139,44 @@ export default function URLResult({ data }: URLResultProps) {
             )}
           </div>
           
-          {data.virustotal.detected > 0 && (
-            <div className="mb-3 p-2 bg-red-800/50 rounded border border-red-600/50">
-              <span className="text-red-300 font-semibold">
-                ⚠️ {data.virustotal.detected}개 엔진이 악성으로 탐지
-              </span>
+          {!data.virustotal ? (
+            <div className="text-sm text-slate-400">
+              VirusTotal 분석 결과를 가져올 수 없습니다. (API 제한 또는 네트워크 오류)
             </div>
-          )}
+          ) : (
+            <>
+              {data.virustotal.detected > 0 && (
+                <div className="mb-3 p-2 bg-red-800/50 rounded border border-red-600/50">
+                  <span className="text-red-300 font-semibold">
+                    ⚠️ {data.virustotal.detected}개 엔진이 악성으로 탐지
+                  </span>
+                </div>
+              )}
 
-          <div className="space-y-2 text-sm">
-            <div>
-              <span className="text-slate-400">탐지율:</span>{' '}
-              <span className={`font-semibold ${
-                data.virustotal.detected > 0
-                  ? data.virustotal.detected / data.virustotal.total >= 0.5
-                    ? 'text-red-300'
-                    : data.virustotal.detected / data.virustotal.total >= 0.2
-                    ? 'text-orange-300'
-                    : 'text-yellow-300'
-                  : 'text-green-300'
-              }`}>
-                {data.virustotal.detected}/{data.virustotal.total} ({data.virustotal.total > 0 ? Math.round((data.virustotal.detected / data.virustotal.total) * 100) : 0}%)
-              </span>
-            </div>
-            {data.virustotal.scan_date && (
-              <div>
-                <span className="text-slate-400">스캔 시각:</span>{' '}
-                <span className="text-slate-200">{data.virustotal.scan_date}</span>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="text-slate-400">탐지율:</span>{' '}
+                  <span className={`font-semibold ${
+                    data.virustotal.detected > 0
+                      ? data.virustotal.detected / data.virustotal.total >= 0.5
+                        ? 'text-red-300'
+                        : data.virustotal.detected / data.virustotal.total >= 0.2
+                        ? 'text-orange-300'
+                        : 'text-yellow-300'
+                      : 'text-green-300'
+                  }`}>
+                    {data.virustotal.detected}/{data.virustotal.total} ({data.virustotal.total > 0 ? Math.round((data.virustotal.detected / data.virustotal.total) * 100) : 0}%)
+                  </span>
+                </div>
+                {data.virustotal.scan_date && (
+                  <div>
+                    <span className="text-slate-400">스캔 시각:</span>{' '}
+                    <span className="text-slate-200">{data.virustotal.scan_date}</span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
       )}
 
