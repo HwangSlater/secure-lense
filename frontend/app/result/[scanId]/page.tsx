@@ -22,6 +22,7 @@ interface AnalysisData {
   uploaded_at: string
   // URL analysis fields
   url?: string
+  virustotal?: any
   urlscan?: any
   ip_info?: any
   domain_info?: any
@@ -178,18 +179,30 @@ export default function ResultPage({ params }: PageProps) {
 
                 <div className="space-y-6">
                   {data.url ? (
-                    <URLResult data={data as any} />
+                    <URLResult data={{
+                      ...data,
+                      virustotal: data.virustotal || data.url_analysis_result?.virustotal,
+                      urlscan: data.urlscan || data.url_analysis_result?.urlscan,
+                    } as any} />
                   ) : data.url_analysis_result ? (
-                    <URLResult data={data.url_analysis_result} />
+                    <URLResult data={{
+                      ...data.url_analysis_result,
+                      scan_id: data.scan_id,
+                      url: data.url || data.filename || '',
+                      risk_score: data.risk_score,
+                      risk_level: data.risk_level,
+                      analyzed_at: data.analyzed_at || data.uploaded_at
+                    }} />
                   ) : (
                     <URLResult data={{
                       scan_id: data.scan_id,
                       url: displayUrl || '',
                       risk_score: data.risk_score,
                       risk_level: data.risk_level,
-                      urlscan: data.urlscan,
-                      ip_info: data.ip_info,
-                      domain_info: data.domain_info,
+                      virustotal: data.virustotal || data.url_analysis_result?.virustotal,
+                      urlscan: data.urlscan || data.url_analysis_result?.urlscan,
+                      ip_info: data.ip_info || data.url_analysis_result?.ip_info,
+                      domain_info: data.domain_info || data.url_analysis_result?.domain_info,
                       analyzed_at: data.analyzed_at || data.uploaded_at
                     }} />
                   )}

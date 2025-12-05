@@ -130,6 +130,7 @@ class AnalysisDetailResponse(BaseModel):
     base64_analysis: Optional[Dict] = None
     # URL analysis fields
     url: Optional[str] = None
+    virustotal: Optional[Dict] = None
     urlscan: Optional[Dict] = None
     ip_info: Optional[Dict] = None
     domain_info: Optional[Dict] = None
@@ -146,6 +147,7 @@ class URLAnalysisResponse(BaseModel):
     url: str
     risk_score: int
     risk_level: str
+    virustotal: Optional[Dict] = None
     urlscan: Optional[Dict] = None
     ip_info: Optional[Dict] = None
     domain_info: Optional[Dict] = None
@@ -343,16 +345,16 @@ async def analyze_url_endpoint(
         # Calculate risk score based on VirusTotal (primary) and URLScan.io (secondary) results
         risk_score = 0
         
-        # VirusTotal URL scan results (primary - more reliable for malicious detection)
+        # VirusTotal URL scan results (primary - more reliable for malicious detection, minimum 5 detections required)
         if url_analysis_result.get('virustotal'):
             vt_result = url_analysis_result['virustotal']
-            if isinstance(vt_result, dict) and vt_result.get('detected', 0) > 0:
+            if isinstance(vt_result, dict) and vt_result.get('detected', 0) >= 5:
                 detected_ratio = vt_result['detected'] / max(vt_result.get('total', 1), 1)
                 if detected_ratio >= 0.5:  # 50%+ detection
                     risk_score = min(100, 85 + int(detected_ratio * 15))
                 elif detected_ratio >= 0.2:  # 20%+ detection
                     risk_score = min(85, 70 + int(detected_ratio * 15))
-                else:  # Any detection
+                else:  # 5+ detections but < 20%
                     risk_score = min(70, 55 + int(detected_ratio * 15))
         
         # URLScan.io results (secondary - for behavior analysis)
@@ -417,6 +419,7 @@ async def analyze_url_endpoint(
             url=url,
             risk_score=risk_score,
             risk_level=risk_level,
+            virustotal=url_analysis_result.get('virustotal'),
             urlscan=url_analysis_result.get('urlscan'),
             ip_info=url_analysis_result.get('ip_info'),
             domain_info=url_analysis_result.get('domain_info', {}),
@@ -985,6 +988,7 @@ async def get_analysis_detail(
             file_deleted_at="",  # Not applicable for URL analysis
             uploaded_at=db_analysis.uploaded_at.isoformat() + "Z",
             url=analysis.get("url") or db_analysis.filename,
+            virustotal=analysis.get("virustotal_result") or url_analysis_result.get("virustotal"),
             urlscan=analysis.get("urlscan_result") or url_analysis_result.get("urlscan"),
             ip_info=analysis.get("ip_info") or url_analysis_result.get("ip_info"),
             domain_info=analysis.get("domain_info") or url_analysis_result.get("domain_info", {}),

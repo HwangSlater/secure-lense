@@ -611,7 +611,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('ClamAV')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">ClamAV</span>
                     {expandedTools['ClamAV'] && (
@@ -632,7 +632,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('YARA 규칙')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">YARA 규칙</span>
                     {expandedTools['YARA 규칙'] && (
@@ -653,7 +653,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('엔트로피 분석')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">엔트로피 분석</span>
                     {expandedTools['엔트로피 분석'] && (
@@ -678,7 +678,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('파일 타입 검증')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">파일 타입 검증</span>
                     {expandedTools['파일 타입 검증'] && (
@@ -701,7 +701,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('PE 강화 분석')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">PE 강화 분석</span>
                     {expandedTools['PE 강화 분석'] && (
@@ -724,7 +724,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('쉘코드 탐지')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">쉘코드 탐지</span>
                     {expandedTools['쉘코드 탐지'] && (
@@ -745,7 +745,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('의심 문자열 분석')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">의심 문자열 분석</span>
                     {expandedTools['의심 문자열 분석'] && (
@@ -766,7 +766,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('Office 문서 분석')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">Office 문서 분석</span>
                     {expandedTools['Office 문서 분석'] && (
@@ -791,7 +791,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('PDF 분석')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">PDF 분석</span>
                     {expandedTools['PDF 분석'] && (
@@ -814,7 +814,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('ZIP 분석')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">ZIP 분석</span>
                     {expandedTools['ZIP 분석'] && (
@@ -837,7 +837,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('스피어피싱 지표')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">스피어피싱 지표</span>
                     {expandedTools['스피어피싱 지표'] && (
@@ -858,7 +858,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('파일 해시')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">파일 해시</span>
                     {expandedTools['파일 해시'] && (
@@ -879,7 +879,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('파일 크기 분석')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">파일 크기 분석</span>
                     {expandedTools['파일 크기 분석'] && (
@@ -902,7 +902,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('파일명 패턴 분석')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">파일명 패턴 분석</span>
                     {expandedTools['파일명 패턴 분석'] && (
@@ -925,7 +925,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('Base64 인코딩 탐지')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">Base64 인코딩 탐지</span>
                     {expandedTools['Base64 인코딩 탐지'] && (
@@ -950,7 +950,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('VirusTotal')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">외부 서비스</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">VirusTotal</span>
                     {expandedTools['VirusTotal'] && (
@@ -973,7 +973,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('MalwareBazaar')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">외부 서비스</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">MalwareBazaar</span>
                     {expandedTools['MalwareBazaar'] && (
@@ -996,7 +996,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('URL 스캔')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">외부 서비스</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">URL 스캔</span>
                     {expandedTools['URL 스캔'] && (
@@ -1017,7 +1017,7 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                   className="hover:bg-slate-800/40 cursor-pointer"
                   onClick={() => toggleToolDescription('IP 정보 조회')}
                 >
-                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300 whitespace-nowrap">외부 서비스</td>
                   <td className="px-4 py-2 border-b border-slate-800">
                     <span className="font-semibold text-cyan-300">IP 정보 조회</span>
                     {expandedTools['IP 정보 조회'] && (

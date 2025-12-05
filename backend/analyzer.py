@@ -1098,15 +1098,15 @@ def calculate_risk_score(
     
     # External API results
     if external_apis:
-        # VirusTotal detection
+        # VirusTotal detection (minimum 5 detections required)
         vt_result = external_apis.get("virustotal")
-        if vt_result and vt_result.get("detected", 0) > 0:
+        if vt_result and vt_result.get("detected", 0) >= 5:
             detected_ratio = vt_result["detected"] / max(vt_result.get("total", 1), 1)
             if detected_ratio >= 0.5:  # 50%+ detection
                 score += 35
             elif detected_ratio >= 0.2:  # 20%+ detection
                 score += 25
-            else:  # Any detection
+            else:  # 5+ detections but < 20%
                 score += 15
         
         # MalwareBazaar match
@@ -1116,15 +1116,15 @@ def calculate_risk_score(
         # URL scans (VirusTotal and URLScan.io)
         url_scans = external_apis.get("url_scans", [])
         for scan in url_scans:
-            # VirusTotal URL detection (primary - more reliable)
+            # VirusTotal URL detection (primary - more reliable, minimum 5 detections required)
             vt_url = scan.get("virustotal")
-            if vt_url and isinstance(vt_url, dict) and vt_url.get("detected", 0) > 0:
+            if vt_url and isinstance(vt_url, dict) and vt_url.get("detected", 0) >= 5:
                 detected_ratio = vt_url["detected"] / max(vt_url.get("total", 1), 1)
                 if detected_ratio >= 0.5:  # 50%+ detection
                     score += 30
                 elif detected_ratio >= 0.2:  # 20%+ detection
                     score += 20
-                else:  # Any detection
+                else:  # 5+ detections but < 20%
                     score += 15
             # URLScan.io malicious detection (secondary)
             elif scan.get("urlscan", {}).get("malicious", False):
