@@ -247,7 +247,7 @@ const toolDescriptions: Record<string, string> = {
   '파일 해시': '파일의 고유 식별자(MD5, SHA1, SHA256)를 계산합니다. 외부 위협 인텔리전스 서비스와 연동에 사용됩니다.',
   '파일 크기 분석': '비정상적으로 작거나 큰 파일을 탐지합니다.',
   '파일명 패턴 분석': '의심스러운 파일명 패턴을 탐지합니다. 이중 확장자, 피싱 키워드, 랜덤 파일명 등을 탐지합니다.',
-  'Base64 인코딩 탐지': '파일 내 Base64로 인코딩된 데이터를 탐지합니다. 난독화 및 페이로드 숨김 탐지에 사용됩니다.',
+  'Base64 인코딩 탐지': '파일 내 Base64로 인코딩된 데이터를 탐지합니다.',
   'PE 강화 분석': 'LIEF 라이브러리를 사용한 상세 PE 파일 분석입니다. 섹션 엔트로피, API 임포트 등을 분석합니다.',
   '쉘코드 탐지': '프로세스 제어를 시도하는 코드 패턴을 탐지합니다.',
   '의심 문자열 분석': '파일 내 의심스러운 문자열을 추출합니다. 악성 행위와 관련된 키워드를 탐지합니다.',
@@ -263,25 +263,25 @@ const toolDescriptions: Record<string, string> = {
 
 // 툴 상세 설명 데이터 (이름 클릭 시 표시 - 기능 + 탐지 시 의미)
 const toolDetailedDescriptions: Record<string, string> = {
-  'ClamAV': '이 툴은 바이러스 시그니처 기반 탐지 엔진입니다. 알려진 악성코드의 고유 패턴(시그니처)을 데이터베이스와 비교하여 탐지합니다. 트로이 목마, 웜, 랜섬웨어 등 다양한 악성코드를 탐지할 수 있습니다.\n\n탐지가 되었을 경우: 해당 파일이 알려진 악성코드로 판단됩니다. 즉시 실행을 중단하고 격리하거나 삭제해야 합니다. 위험도 점수에 +40점이 추가됩니다.',
-  'YARA 규칙': '이 툴은 패턴 매칭 규칙 엔진입니다. YARA 규칙을 사용하여 악성코드의 특징적인 패턴을 탐지합니다. 쉘코드 패턴, 자격 증명 탈취 행위, 한국어 피싱 키워드, 이중 확장자 파일 등을 탐지할 수 있습니다.\n\n탐지가 되었을 경우: 파일이 악성코드의 특징적인 패턴을 가지고 있음을 의미합니다. 해당 패턴의 종류와 개수에 따라 위험도가 달라지며, 최대 +30점이 추가됩니다.',
-  '엔트로피 분석': '이 툴은 파일의 무작위성을 측정하여 패킹(압축) 또는 암호화 여부를 판단합니다. 0-8.0 척도로 측정하며, 7.0 이상이면 패킹/암호화 가능성이 높습니다. 악성코드는 분석을 피하기 위해 패킹을 자주 사용합니다.\n\n높은 엔트로피가 탐지되었을 경우: 파일이 패킹되거나 암호화되었을 가능성이 높습니다. 이는 악성코드가 분석을 회피하기 위해 사용하는 기법입니다. 엔트로피가 7.5 이상이면 +20점, 7.0-7.5면 +15점이 추가됩니다.',
-  '파일 타입 검증': '이 툴은 실제 파일 시그니처(매직 넘버)를 확인하여 확장자 위조를 탐지합니다. 예를 들어 실제 실행 파일인데 .pdf 확장자를 가진 경우를 탐지합니다. 피싱 공격에서 자주 사용되는 기법입니다.\n\n확장자 위조가 탐지되었을 경우: 파일의 실제 타입과 확장자가 일치하지 않습니다. 이는 사용자를 속이기 위한 시도로, 실제 실행 파일을 문서 파일로 위장한 경우가 많습니다. +15점이 추가됩니다.',
-  '파일 해시': '이 툴은 파일의 고유 식별자(MD5, SHA1, SHA256)를 계산합니다. 동일 파일 여부 확인, VirusTotal 및 MalwareBazaar와 같은 외부 위협 인텔리전스 서비스와 연동하여 알려진 악성코드를 검색하는 데 사용됩니다.\n\n해시 계산 자체는 위험도를 직접적으로 증가시키지 않지만, 계산된 해시를 통해 외부 서비스에서 알려진 악성코드인지 확인할 수 있습니다.',
-  '파일 크기 분석': '이 툴은 비정상적으로 작거나 큰 파일을 탐지합니다. 1KB 미만의 파일은 드로퍼(추가 데이터를 다운로드하는 악성코드) 가능성이 있고, 100MB 초과는 데이터 유출 시도 가능성이 있습니다.\n\n이상 크기가 탐지되었을 경우: 파일 크기가 비정상적입니다. 매우 작은 파일은 추가 악성 페이로드를 다운로드하는 드로퍼일 수 있고, 매우 큰 파일은 데이터 유출 시도일 수 있습니다. +10점이 추가됩니다.',
-  '파일명 패턴 분석': '이 툴은 의심스러운 파일명 패턴을 탐지합니다. 이중 확장자(예: invoice.pdf.exe), 피싱 키워드(긴급, 확인 등), 랜덤 파일명, 호모그래프 공격(유니코드 문자 사용) 등을 탐지합니다.\n\n의심스러운 패턴이 탐지되었을 경우: 파일명이 피싱 공격이나 악성코드의 특징을 보입니다. 이중 확장자는 사용자를 속이기 위한 시도이고, 피싱 키워드는 긴급성을 조성하려는 시도입니다. +15점이 추가됩니다.',
-  'Base64 인코딩 탐지': '이 툴은 파일 내 Base64로 인코딩된 데이터를 탐지합니다. 악성코드가 페이로드를 숨기거나 난독화하기 위해 Base64 인코딩을 사용하는 경우가 많습니다. 다수의 Base64 문자열이나 대용량 데이터는 의심스러울 수 있습니다.\n\n의심스러운 Base64 인코딩이 탐지되었을 경우: 파일 내부에 난독화된 페이로드가 숨겨져 있을 가능성이 높습니다. 악성코드는 분석을 피하기 위해 Base64로 인코딩하여 숨기는 경우가 많습니다. +15점이 추가됩니다.',
-  'PE 강화 분석': '이 툴은 LIEF 라이브러리를 사용한 상세 PE 파일 분석입니다. 각 섹션의 엔트로피, 임포트/익스포트 함수, 섹션 특성(실행 가능 + 쓰기 가능 등)을 분석하여 악성 행위를 탐지합니다.\n\n의심스러운 특성이 탐지되었을 경우: PE 파일의 구조가 비정상적입니다. 고엔트로피 섹션은 패킹을 의미하고, 실행 가능 + 쓰기 가능한 섹션은 코드 주입 가능성을 의미합니다. +20점이 추가됩니다.',
-  '쉘코드 탐지': '이 툴은 프로세스 제어를 시도하는 코드 패턴을 탐지합니다. NOP sled, JMP/CALL/PUSH 명령어 시퀀스 등 쉘코드의 특징적인 패턴을 찾아냅니다. 쉘코드는 악성코드가 시스템을 제어하기 위해 사용하는 코드입니다.\n\n쉘코드가 탐지되었을 경우: 파일 내부에 시스템을 제어하려는 악성 코드가 포함되어 있습니다. 이는 매우 위험한 신호로, 즉시 실행을 중단해야 합니다. +20점이 추가됩니다.',
-  '의심 문자열 분석': '이 툴은 파일 내 의심스러운 문자열을 추출합니다. cmd.exe, powershell, 레지스트리 조작, 네트워크 API, 메모리 조작 등의 의심스러운 키워드를 탐지합니다.\n\n의심스러운 문자열이 탐지되었을 경우: 파일이 시스템을 조작하거나 네트워크 통신을 시도하는 코드를 포함하고 있습니다. 5개 이상이면 +15점, 3개 이상이면 +10점이 추가됩니다.',
-  'Office 문서 분석': '이 툴은 Office 문서의 VBA 매크로를 분석합니다. 매크로 존재 여부, 자동 실행 매크로(Auto_Open 등), 의심스러운 VBA 키워드(Shell, CreateObject 등)를 탐지합니다. 악성 Office 문서는 매크로를 통해 악성 코드를 실행합니다.\n\n매크로가 탐지되었을 경우: Office 문서에 VBA 매크로가 포함되어 있습니다. 특히 자동 실행 매크로는 문서를 열면 자동으로 실행되므로 매우 위험합니다. 자동 실행 매크로는 +20점, 일반 매크로는 +15점이 추가됩니다.',
-  'PDF 분석': '이 툴은 PDF 파일의 의심스러운 요소를 탐지합니다. JavaScript 포함 여부, 인터랙티브 요소(액션, 폼), 임베디드 파일 등을 확인합니다. 악성 PDF는 JavaScript를 통해 악성 코드를 실행할 수 있습니다.\n\nJavaScript가 탐지되었을 경우: PDF 파일에 JavaScript 코드가 포함되어 있습니다. 악성 PDF는 JavaScript를 통해 시스템 명령을 실행하거나 추가 악성 파일을 다운로드할 수 있습니다. +15점이 추가됩니다.',
-  'ZIP 분석': '이 툴은 압축 파일 내부의 위험 요소를 탐지합니다. 이중 확장자 파일, 실행 파일, 중첩 아카이브, 암호화된 파일 등을 확인합니다. 피싱 공격에서 악성 파일을 압축하여 전송하는 경우가 많습니다.\n\n의심스러운 파일이 탐지되었을 경우: ZIP 파일 내부에 위험한 파일이 포함되어 있습니다. 이중 확장자 파일이나 실행 파일은 사용자를 속이기 위한 시도입니다. +15점이 추가됩니다.',
-  '스피어피싱 지표': '이 툴은 이메일 기반 공격(스피어피싱)의 징후를 탐지합니다. 발신자 위조, 피싱 키워드, 의심스러운 URL, 이중 확장자 첨부파일 등을 확인합니다.\n\n스피어피싱 지표가 탐지되었을 경우: 이메일이 피싱 공격의 일부일 가능성이 높습니다. 발신자 위조, 피싱 키워드, 의심스러운 URL 등이 발견되면 해당 이메일을 신뢰하지 말고 첨부파일을 실행하지 않아야 합니다. +10~20점이 추가됩니다.',
-  'VirusTotal': '이 툴은 다수의 백신 엔진을 사용하는 위협 인텔리전스 서비스입니다. 파일 해시를 기반으로 70개 이상의 백신 엔진이 해당 파일을 어떻게 판단했는지 확인할 수 있습니다.\n\n탐지가 되었을 경우: 다수의 백신 엔진이 해당 파일을 악성으로 판단했습니다. 탐지 비율이 50% 이상이면 +25점, 20-50%면 +15점, 그 이하는 +10점이 추가됩니다. 이는 매우 신뢰할 수 있는 신호입니다.',
-  'MalwareBazaar': '이 툴은 Abuse.ch에서 운영하는 악성코드 샘플 데이터베이스입니다. 파일 해시를 기반으로 알려진 악성코드 샘플인지 확인할 수 있습니다.\n\n매칭이 되었을 경우: 해당 파일이 알려진 악성코드 샘플입니다. 이미 악성코드로 확인된 파일이므로 즉시 삭제해야 합니다. +20점이 추가됩니다.',
-  'URL 스캔': '이 툴은 파일 내부에서 추출된 URL을 VirusTotal과 URLScan.io를 통해 분석합니다. VirusTotal은 다수의 백신 엔진을 사용하여 악성 URL을 탐지하는 데 더 정확합니다. URLScan.io는 URL의 동작을 분석하고 스크린샷, 네트워크 요청, 페이지 구조 등을 기록하여 제공합니다.\n\nVirusTotal이 악성으로 탐지했을 경우: 파일 내부에 포함된 URL이 다수의 백신 엔진에 의해 악성으로 판단되었습니다. 이는 피싱 사이트나 C2(Command & Control) 서버일 가능성이 매우 높습니다. 해당 URL로 접속하지 않아야 합니다. 탐지 비율에 따라 +10~20점이 추가됩니다.\n\nURLScan.io가 악성으로 판단했을 경우: URL의 동작 분석 결과 악성으로 판단되었습니다. 위협 점수가 높거나 의심스러운 동작이 발견된 경우, 해당 URL로 접속하지 않아야 합니다. +15점이 추가됩니다.',
-  'IP 정보 조회': '이 툴은 파일 내부에서 추출된 IP 주소의 지오로케이션 정보를 조회합니다. IP 주소의 국가, 도시, ISP 정보를 확인하여 의심스러운 위치의 IP를 탐지할 수 있습니다.\n\n의심스러운 IP가 발견되었을 경우: 파일 내부에 포함된 IP 주소가 의심스러운 위치에 있습니다. C2 서버나 악성 서버의 IP일 가능성이 있습니다. 해당 IP와의 통신을 차단해야 합니다.',
+  'ClamAV': '바이러스 시그니처 기반 탐지 엔진입니다. 알려진 악성코드의 고유 패턴(시그니처)을 데이터베이스와 비교하여 탐지합니다. 트로이 목마, 웜, 랜섬웨어 등 다양한 악성코드를 탐지할 수 있습니다.\n\n탐지가 되었을 경우: 해당 파일이 알려진 악성코드로 판단됩니다. 즉시 실행을 중단하고 격리하거나 삭제해야 합니다. 위험도 점수에 +40점이 추가됩니다.',
+  'YARA 규칙': '패턴 매칭 규칙 엔진입니다. YARA 규칙을 사용하여 악성코드의 특징적인 패턴을 탐지합니다. 쉘코드 패턴, 자격 증명 탈취 행위, 한국어 피싱 키워드, 이중 확장자 파일 등을 탐지할 수 있습니다.\n\n탐지가 되었을 경우: 파일이 악성코드의 특징적인 패턴을 가지고 있음을 의미합니다. 해당 패턴의 종류와 개수에 따라 위험도가 달라지며, 최대 +30점이 추가됩니다.',
+  '엔트로피 분석': '파일의 무작위성을 측정하여 패킹(압축) 또는 암호화 여부를 판단합니다. 0-8.0 척도로 측정하며, 7.0 이상이면 패킹/암호화 가능성이 높습니다. 악성코드는 분석을 피하기 위해 패킹을 자주 사용합니다.\n\n높은 엔트로피가 탐지되었을 경우: 파일이 패킹되거나 암호화되었을 가능성이 높습니다. 이는 악성코드가 분석을 회피하기 위해 사용하는 기법입니다. 엔트로피가 7.5 이상이면 +20점, 7.0-7.5면 +15점이 추가됩니다.',
+  '파일 타입 검증': '실제 파일 시그니처(매직 넘버)를 확인하여 확장자 위조를 탐지합니다. 예를 들어 실제 실행 파일인데 .pdf 확장자를 가진 경우를 탐지합니다. 피싱 공격에서 자주 사용되는 기법입니다.\n\n확장자 위조가 탐지되었을 경우: 파일의 실제 타입과 확장자가 일치하지 않습니다. 이는 사용자를 속이기 위한 시도로, 실제 실행 파일을 문서 파일로 위장한 경우가 많습니다. +15점이 추가됩니다.',
+  '파일 해시': '파일의 고유 식별자(MD5, SHA1, SHA256)를 계산합니다. 동일 파일 여부 확인, VirusTotal 및 MalwareBazaar와 같은 외부 위협 인텔리전스 서비스와 연동하여 알려진 악성코드를 검색하는 데 사용됩니다.\n\n해시 계산 자체는 위험도를 직접적으로 증가시키지 않지만, 계산된 해시를 통해 외부 서비스에서 알려진 악성코드인지 확인할 수 있습니다.',
+  '파일 크기 분석': '비정상적으로 작거나 큰 파일을 탐지합니다. 1KB 미만의 파일은 드로퍼(추가 데이터를 다운로드하는 악성코드) 가능성이 있고, 100MB 초과는 데이터 유출 시도 가능성이 있습니다.\n\n이상 크기가 탐지되었을 경우: 파일 크기가 비정상적입니다. 매우 작은 파일은 추가 악성 페이로드를 다운로드하는 드로퍼일 수 있고, 매우 큰 파일은 데이터 유출 시도일 수 있습니다. +10점이 추가됩니다.',
+  '파일명 패턴 분석': '의심스러운 파일명 패턴을 탐지합니다. 이중 확장자(예: invoice.pdf.exe), 피싱 키워드(긴급, 확인 등), 랜덤 파일명, 호모그래프 공격(유니코드 문자 사용) 등을 탐지합니다.\n\n의심스러운 패턴이 탐지되었을 경우: 파일명이 피싱 공격이나 악성코드의 특징을 보입니다. 이중 확장자는 사용자를 속이기 위한 시도이고, 피싱 키워드는 긴급성을 조성하려는 시도입니다. +15점이 추가됩니다.',
+  'Base64 인코딩 탐지': '파일 내 Base64로 인코딩된 데이터를 탐지합니다. 악성코드가 페이로드를 숨기거나 난독화하기 위해 Base64 인코딩을 사용하는 경우가 많습니다. 다수의 Base64 문자열이나 대용량 데이터는 의심스러울 수 있습니다.\n\n의심스러운 Base64 인코딩이 탐지되었을 경우: 파일 내부에 난독화된 페이로드가 숨겨져 있을 가능성이 높습니다. 악성코드는 분석을 피하기 위해 Base64로 인코딩하여 숨기는 경우가 많습니다. +15점이 추가됩니다.',
+  'PE 강화 분석': 'LIEF 라이브러리를 사용한 상세 PE 파일 분석입니다. 각 섹션의 엔트로피, 임포트/익스포트 함수, 섹션 특성(실행 가능 + 쓰기 가능 등)을 분석하여 악성 행위를 탐지합니다.\n\n의심스러운 특성이 탐지되었을 경우: PE 파일의 구조가 비정상적입니다. 고엔트로피 섹션은 패킹을 의미하고, 실행 가능 + 쓰기 가능한 섹션은 코드 주입 가능성을 의미합니다. +20점이 추가됩니다.',
+  '쉘코드 탐지': '프로세스 제어를 시도하는 코드 패턴을 탐지합니다. NOP sled, JMP/CALL/PUSH 명령어 시퀀스 등 쉘코드의 특징적인 패턴을 찾아냅니다. 쉘코드는 악성코드가 시스템을 제어하기 위해 사용하는 코드입니다.\n\n쉘코드가 탐지되었을 경우: 파일 내부에 시스템을 제어하려는 악성 코드가 포함되어 있습니다. 이는 매우 위험한 신호로, 즉시 실행을 중단해야 합니다. +20점이 추가됩니다.',
+  '의심 문자열 분석': '파일 내 의심스러운 문자열을 추출합니다. cmd.exe, powershell, 레지스트리 조작, 네트워크 API, 메모리 조작 등의 의심스러운 키워드를 탐지합니다.\n\n의심스러운 문자열이 탐지되었을 경우: 파일이 시스템을 조작하거나 네트워크 통신을 시도하는 코드를 포함하고 있습니다. 5개 이상이면 +15점, 3개 이상이면 +10점이 추가됩니다.',
+  'Office 문서 분석': 'Office 문서의 VBA 매크로를 분석합니다. 매크로 존재 여부, 자동 실행 매크로(Auto_Open 등), 의심스러운 VBA 키워드(Shell, CreateObject 등)를 탐지합니다. 악성 Office 문서는 매크로를 통해 악성 코드를 실행합니다.\n\n매크로가 탐지되었을 경우: Office 문서에 VBA 매크로가 포함되어 있습니다. 특히 자동 실행 매크로는 문서를 열면 자동으로 실행되므로 매우 위험합니다. 자동 실행 매크로는 +20점, 일반 매크로는 +15점이 추가됩니다.',
+  'PDF 분석': 'PDF 파일의 의심스러운 요소를 탐지합니다. JavaScript 포함 여부, 인터랙티브 요소(액션, 폼), 임베디드 파일 등을 확인합니다. 악성 PDF는 JavaScript를 통해 악성 코드를 실행할 수 있습니다.\n\nJavaScript가 탐지되었을 경우: PDF 파일에 JavaScript 코드가 포함되어 있습니다. 악성 PDF는 JavaScript를 통해 시스템 명령을 실행하거나 추가 악성 파일을 다운로드할 수 있습니다. +15점이 추가됩니다.',
+  'ZIP 분석': '압축 파일 내부의 위험 요소를 탐지합니다. 이중 확장자 파일, 실행 파일, 중첩 아카이브, 암호화된 파일 등을 확인합니다. 피싱 공격에서 악성 파일을 압축하여 전송하는 경우가 많습니다.\n\n의심스러운 파일이 탐지되었을 경우: ZIP 파일 내부에 위험한 파일이 포함되어 있습니다. 이중 확장자 파일이나 실행 파일은 사용자를 속이기 위한 시도입니다. +15점이 추가됩니다.',
+  '스피어피싱 지표': '이메일 기반 공격(스피어피싱)의 징후를 탐지합니다. 발신자 위조, 피싱 키워드, 의심스러운 URL, 이중 확장자 첨부파일 등을 확인합니다.\n\n스피어피싱 지표가 탐지되었을 경우: 이메일이 피싱 공격의 일부일 가능성이 높습니다. 발신자 위조, 피싱 키워드, 의심스러운 URL 등이 발견되면 해당 이메일을 신뢰하지 말고 첨부파일을 실행하지 않아야 합니다. +10~20점이 추가됩니다.',
+  'VirusTotal': '다수의 백신 엔진을 사용하는 위협 인텔리전스 서비스입니다. 파일 해시를 기반으로 다수의 백신 엔진이 해당 파일을 어떻게 판단했는지 확인할 수 있습니다.\n\n탐지가 되었을 경우: 다수의 백신 엔진이 해당 파일을 악성으로 판단했습니다. 탐지 비율이 50% 이상이면 +35점, 20-50%면 +25점, 그 이하는 +15점이 추가됩니다. 이는 매우 신뢰할 수 있는 신호입니다.',
+  'MalwareBazaar': 'Abuse.ch에서 운영하는 악성코드 샘플 데이터베이스입니다. 파일 해시를 기반으로 알려진 악성코드 샘플인지 확인할 수 있습니다.\n\n매칭이 되었을 경우: 해당 파일이 알려진 악성코드 샘플입니다. 이미 악성코드로 확인된 파일이므로 즉시 삭제해야 합니다. +20점이 추가됩니다.',
+  'URL 스캔': '파일 내부에서 추출된 URL을 VirusTotal과 URLScan.io를 통해 분석합니다. VirusTotal은 다수의 백신 엔진을 사용하여 악성 URL을 탐지하는 데 더 정확합니다. URLScan.io는 URL의 동작을 분석하고 스크린샷, 네트워크 요청, 페이지 구조 등을 기록하여 제공합니다.\n\nVirusTotal이 악성으로 탐지했을 경우: 파일 내부에 포함된 URL이 다수의 백신 엔진에 의해 악성으로 판단되었습니다. 이는 피싱 사이트나 C2(Command & Control) 서버일 가능성이 매우 높습니다. 해당 URL로 접속하지 않아야 합니다. 탐지 비율에 따라 +15~30점이 추가됩니다.\n\nURLScan.io가 악성으로 판단했을 경우: URL의 동작 분석 결과 악성으로 판단되었습니다. 위협 점수가 높거나 의심스러운 동작이 발견된 경우, 해당 URL로 접속하지 않아야 합니다. +15점이 추가됩니다.',
+  'IP 정보 조회': '파일 내부에서 추출된 IP 주소의 지오로케이션 정보를 조회합니다. IP 주소의 국가, 도시, ISP 정보를 확인하여 의심스러운 위치의 IP를 탐지할 수 있습니다.\n\n의심스러운 IP가 발견되었을 경우: 파일 내부에 포함된 IP 주소가 의심스러운 위치에 있습니다. C2 서버나 악성 서버의 IP일 가능성이 있습니다. 해당 IP와의 통신을 차단해야 합니다.',
 }
 
 export default function AnalysisResult({ data }: AnalysisResultProps) {
@@ -292,21 +292,11 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
   // 모든 툴을 표시하기 위해 항상 true로 설정
   const hasSummaryTable = true
 
-  // 각 툴의 토글 상태 관리 (행 클릭용)
+  // 각 툴의 상세 설명 토글 상태 관리 (행 클릭용)
   const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({})
-  // 각 툴의 상세 설명 토글 상태 관리 (이름 클릭용)
-  const [expandedDetailedTools, setExpandedDetailedTools] = useState<Record<string, boolean>>({})
 
   const toggleToolDescription = (toolName: string) => {
     setExpandedTools((prev: Record<string, boolean>) => ({
-      ...prev,
-      [toolName]: !prev[toolName]
-    }))
-  }
-
-  const toggleDetailedDescription = (toolName: string, e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation() // 행 클릭 이벤트 전파 방지
-    setExpandedDetailedTools((prev: Record<string, boolean>) => ({
       ...prev,
       [toolName]: !prev[toolName]
     }))
@@ -623,19 +613,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('ClamAV', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      ClamAV
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">ClamAV</span>
                     {expandedTools['ClamAV'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['ClamAV']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['ClamAV'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['ClamAV']}
                       </div>
@@ -655,19 +634,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('YARA 규칙', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      YARA 규칙
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">YARA 규칙</span>
                     {expandedTools['YARA 규칙'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['YARA 규칙']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['YARA 규칙'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['YARA 규칙']}
                       </div>
@@ -687,19 +655,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('엔트로피 분석', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      엔트로피 분석
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">엔트로피 분석</span>
                     {expandedTools['엔트로피 분석'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['엔트로피 분석']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['엔트로피 분석'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['엔트로피 분석']}
                       </div>
@@ -723,19 +680,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('파일 타입 검증', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      파일 타입 검증
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">파일 타입 검증</span>
                     {expandedTools['파일 타입 검증'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['파일 타입 검증']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['파일 타입 검증'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['파일 타입 검증']}
                       </div>
@@ -757,19 +703,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('PE 강화 분석', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      PE 강화 분석
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">PE 강화 분석</span>
                     {expandedTools['PE 강화 분석'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['PE 강화 분석']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['PE 강화 분석'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['PE 강화 분석']}
                       </div>
@@ -791,19 +726,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('쉘코드 탐지', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      쉘코드 탐지
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">쉘코드 탐지</span>
                     {expandedTools['쉘코드 탐지'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['쉘코드 탐지']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['쉘코드 탐지'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['쉘코드 탐지']}
                       </div>
@@ -823,19 +747,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('의심 문자열 분석', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      의심 문자열 분석
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">의심 문자열 분석</span>
                     {expandedTools['의심 문자열 분석'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['의심 문자열 분석']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['의심 문자열 분석'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['의심 문자열 분석']}
                       </div>
@@ -855,19 +768,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('Office 문서 분석', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      Office 문서 분석
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">Office 문서 분석</span>
                     {expandedTools['Office 문서 분석'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['Office 문서 분석']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['Office 문서 분석'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['Office 문서 분석']}
                       </div>
@@ -891,19 +793,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('PDF 분석', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      PDF 분석
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">PDF 분석</span>
                     {expandedTools['PDF 분석'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['PDF 분석']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['PDF 분석'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['PDF 분석']}
                       </div>
@@ -925,19 +816,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('ZIP 분석', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      ZIP 분석
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">ZIP 분석</span>
                     {expandedTools['ZIP 분석'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['ZIP 분석']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['ZIP 분석'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['ZIP 분석']}
                       </div>
@@ -959,19 +839,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('스피어피싱 지표', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      스피어피싱 지표
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">스피어피싱 지표</span>
                     {expandedTools['스피어피싱 지표'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['스피어피싱 지표']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['스피어피싱 지표'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['스피어피싱 지표']}
                       </div>
@@ -991,19 +860,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('파일 해시', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      파일 해시
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">파일 해시</span>
                     {expandedTools['파일 해시'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['파일 해시']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['파일 해시'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['파일 해시']}
                       </div>
@@ -1023,19 +881,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('파일 크기 분석', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      파일 크기 분석
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">파일 크기 분석</span>
                     {expandedTools['파일 크기 분석'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['파일 크기 분석']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['파일 크기 분석'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['파일 크기 분석']}
                       </div>
@@ -1057,19 +904,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('파일명 패턴 분석', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      파일명 패턴 분석
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">파일명 패턴 분석</span>
                     {expandedTools['파일명 패턴 분석'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['파일명 패턴 분석']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['파일명 패턴 분석'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['파일명 패턴 분석']}
                       </div>
@@ -1091,19 +927,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('Base64 인코딩 탐지', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      Base64 인코딩 탐지
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">Base64 인코딩 탐지</span>
                     {expandedTools['Base64 인코딩 탐지'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['Base64 인코딩 탐지']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['Base64 인코딩 탐지'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['Base64 인코딩 탐지']}
                       </div>
@@ -1127,19 +952,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('VirusTotal', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      VirusTotal
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">VirusTotal</span>
                     {expandedTools['VirusTotal'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['VirusTotal']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['VirusTotal'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['VirusTotal']}
                       </div>
@@ -1161,19 +975,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('MalwareBazaar', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      MalwareBazaar
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">MalwareBazaar</span>
                     {expandedTools['MalwareBazaar'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['MalwareBazaar']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['MalwareBazaar'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['MalwareBazaar']}
                       </div>
@@ -1195,19 +998,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('URL 스캔', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      URL 스캔
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">URL 스캔</span>
                     {expandedTools['URL 스캔'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['URL 스캔']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['URL 스캔'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['URL 스캔']}
                       </div>
@@ -1227,19 +1019,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 >
                   <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
                   <td className="px-4 py-2 border-b border-slate-800">
-                    <button
-                      onClick={(e) => toggleDetailedDescription('IP 정보 조회', e)}
-                      className="font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      IP 정보 조회
-                      <span className="text-xs text-slate-400">ℹ️</span>
-                    </button>
+                    <span className="font-semibold text-cyan-300">IP 정보 조회</span>
                     {expandedTools['IP 정보 조회'] && (
-                      <div className="mt-2 p-3 bg-slate-800/60 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {toolDescriptions['IP 정보 조회']}
-                      </div>
-                    )}
-                    {expandedDetailedTools['IP 정보 조회'] && (
                       <div className="mt-2 p-3 bg-slate-700/80 rounded border border-cyan-500/50 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
                         {toolDetailedDescriptions['IP 정보 조회']}
                       </div>

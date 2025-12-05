@@ -1103,11 +1103,11 @@ def calculate_risk_score(
         if vt_result and vt_result.get("detected", 0) > 0:
             detected_ratio = vt_result["detected"] / max(vt_result.get("total", 1), 1)
             if detected_ratio >= 0.5:  # 50%+ detection
-                score += 25
+                score += 35
             elif detected_ratio >= 0.2:  # 20%+ detection
-                score += 15
+                score += 25
             else:  # Any detection
-                score += 10
+                score += 15
         
         # MalwareBazaar match
         if external_apis.get("malwarebazaar"):
@@ -1121,11 +1121,11 @@ def calculate_risk_score(
             if vt_url and isinstance(vt_url, dict) and vt_url.get("detected", 0) > 0:
                 detected_ratio = vt_url["detected"] / max(vt_url.get("total", 1), 1)
                 if detected_ratio >= 0.5:  # 50%+ detection
-                    score += 20
+                    score += 30
                 elif detected_ratio >= 0.2:  # 20%+ detection
-                    score += 15
+                    score += 20
                 else:  # Any detection
-                    score += 10
+                    score += 15
             # URLScan.io malicious detection (secondary)
             elif scan.get("urlscan", {}).get("malicious", False):
                 score += 15

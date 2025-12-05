@@ -241,6 +241,30 @@ def scan_url_with_urlscan(url: str) -> Optional[Dict]:
                         verdicts = scan_result.get("verdicts", {})
                         overall = verdicts.get("overall", {})
                         
+                        # Extract network requests (useful for detecting C2 servers, suspicious domains)
+                        requests_data = scan_result.get("data", {}).get("requests", [])
+                        network_requests = []
+                        if requests_data:
+                            # Extract unique domains/IPs from network requests
+                            seen_domains = set()
+                            for req in requests_data[:20]:  # Limit to first 20 requests
+                                req_data = req.get("request", {})
+                                url = req_data.get("url", "")
+                                if url:
+                                    try:
+                                        from urllib.parse import urlparse
+                                        parsed = urlparse(url)
+                                        domain = parsed.netloc.split(':')[0]
+                                        if domain and domain not in seen_domains:
+                                            seen_domains.add(domain)
+                                            network_requests.append({
+                                                "domain": domain,
+                                                "url": url,
+                                                "method": req_data.get("method", "GET")
+                                            })
+                                    except:
+                                        pass
+                        
                         return {
                             "uuid": scan_uuid,
                             "url": page_data.get("url"),
@@ -250,7 +274,8 @@ def scan_url_with_urlscan(url: str) -> Optional[Dict]:
                             "screenshot": scan_result.get("task", {}).get("screenshotURL"),
                             "malicious": overall.get("malicious", False),
                             "tags": verdicts.get("tags", []),
-                            "threat_score": overall.get("score", 0)
+                            "threat_score": overall.get("score", 0),
+                            "network_requests": network_requests[:10]  # Limit to 10 unique domains
                         }
                     elif result_response.status_code == 404:
                         # Result not ready yet, wait longer

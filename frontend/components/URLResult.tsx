@@ -25,6 +25,11 @@ interface URLResultProps {
       tags: string[]
       screenshot?: string
       uuid?: string
+      network_requests?: Array<{
+        domain: string
+        url: string
+        method: string
+      }>
     }
     ip_info?: {
       ip: string
@@ -245,6 +250,22 @@ export default function URLResult({ data }: URLResultProps) {
                 >
                   스크린샷 보기 →
                 </a>
+              </div>
+            )}
+            {data.urlscan.network_requests && data.urlscan.network_requests.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-slate-700">
+                <span className="text-slate-400 text-xs mb-2 block">네트워크 요청 도메인:</span>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {data.urlscan.network_requests.map((req, idx) => (
+                    <div key={idx} className="text-xs text-slate-300 font-mono">
+                      <span className="text-slate-400">{req.method}</span>{' '}
+                      <span className="text-cyan-300">{req.domain}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  * 페이지 로드 시 접속한 도메인 목록입니다. 의심스러운 도메인이 포함되어 있을 수 있습니다.
+                </p>
               </div>
             )}
           </div>

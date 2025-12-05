@@ -349,11 +349,11 @@ async def analyze_url_endpoint(
             if isinstance(vt_result, dict) and vt_result.get('detected', 0) > 0:
                 detected_ratio = vt_result['detected'] / max(vt_result.get('total', 1), 1)
                 if detected_ratio >= 0.5:  # 50%+ detection
-                    risk_score = min(100, 80 + int(detected_ratio * 20))
+                    risk_score = min(100, 85 + int(detected_ratio * 15))
                 elif detected_ratio >= 0.2:  # 20%+ detection
-                    risk_score = min(80, 60 + int(detected_ratio * 20))
+                    risk_score = min(85, 70 + int(detected_ratio * 15))
                 else:  # Any detection
-                    risk_score = min(60, 40 + int(detected_ratio * 20))
+                    risk_score = min(70, 55 + int(detected_ratio * 15))
         
         # URLScan.io results (secondary - for behavior analysis)
         if url_analysis_result.get('urlscan') and risk_score < 70:
