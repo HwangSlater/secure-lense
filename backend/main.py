@@ -818,9 +818,25 @@ async def ai_analysis(
             current_user.credits -= 1
             credits_used = 1
         
+        # Log analysis text length before saving
+        analysis_length = len(analysis_text) if analysis_text else 0
+        print(f"AI Analysis length before save: {analysis_length} characters")
+        
         # Save AI analysis to database
         db_analysis.ai_analysis = analysis_text
         db.commit()
+        db.refresh(db_analysis)  # Refresh to get the saved value
+        
+        # Verify that the saved text matches what we tried to save
+        saved_text = db_analysis.ai_analysis
+        saved_length = len(saved_text) if saved_text else 0
+        
+        if saved_length < analysis_length:
+            print(f"WARNING: AI analysis was truncated! Original: {analysis_length}, Saved: {saved_length}")
+            # Try to save again or raise an error
+            raise ValueError(f"AI 분석 결과가 데이터베이스에 완전히 저장되지 않았습니다. (원본: {analysis_length}자, 저장됨: {saved_length}자)")
+        
+        print(f"AI Analysis successfully saved: {saved_length} characters")
         
     except HTTPException:
         # Re-raise HTTP exceptions (they already have proper error messages)

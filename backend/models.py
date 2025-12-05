@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey, JSON
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from passlib.context import CryptContext
@@ -30,7 +31,7 @@ class Analysis(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     filename = Column(String(255), nullable=True)  # Allow NULL for URL analysis
     analysis_data = Column(JSON, nullable=False)  # Store full analysis result as JSON
-    ai_analysis = Column(Text, nullable=True)  # Store AI analysis text
+    ai_analysis = Column(LONGTEXT, nullable=True)  # Store AI analysis text (LONGTEXT supports up to 4GB)
     risk_score = Column(Integer, nullable=False)
     risk_level = Column(String(50), nullable=False)
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
