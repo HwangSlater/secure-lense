@@ -985,32 +985,34 @@ async def get_analysis_detail(
         url_analysis_result = analysis.get("url_analysis_result", {})
         # Ensure virustotal is included in url_analysis_result if it exists in analysis_data
         virustotal_data = analysis.get("virustotal_result") or url_analysis_result.get("virustotal")
-        # Always include virustotal in url_analysis_result for consistency
-        if "virustotal" not in url_analysis_result:
-            url_analysis_result["virustotal"] = virustotal_data
+        # Always include virustotal in url_analysis_result for consistency (even if None)
+        url_analysis_result["virustotal"] = virustotal_data
         
-        return AnalysisDetailResponse(
-            scan_id=scan_id,
-            filename=db_analysis.filename,
-            risk_score=analysis.get("risk_score", 0),
-            risk_level=analysis.get("risk_level", "매우 낮음"),
-            clamav_result=None,
-            yara_matches=[],
-            shellcode_patterns=[],
-            suspicious_strings=[],
-            spearphishing_indicators=None,
-            external_apis=None,
-            ai_analysis=None,  # URL analysis doesn't support AI analysis
-            file_deleted_at="",  # Not applicable for URL analysis
-            uploaded_at=db_analysis.uploaded_at.isoformat() + "Z",
-            url=analysis.get("url") or db_analysis.filename,
-            virustotal=virustotal_data,  # This will be None if not available, but field will be present
-            urlscan=analysis.get("urlscan_result") or url_analysis_result.get("urlscan"),
-            ip_info=analysis.get("ip_info") or url_analysis_result.get("ip_info"),
-            domain_info=analysis.get("domain_info") or url_analysis_result.get("domain_info", {}),
-            analyzed_at=db_analysis.uploaded_at.isoformat() + "Z",
-            url_analysis_result=url_analysis_result,
-        )
+        # Build response dict explicitly to ensure all fields are included
+        response_dict = {
+            "scan_id": scan_id,
+            "filename": db_analysis.filename,
+            "risk_score": analysis.get("risk_score", 0),
+            "risk_level": analysis.get("risk_level", "매우 낮음"),
+            "clamav_result": None,
+            "yara_matches": [],
+            "shellcode_patterns": [],
+            "suspicious_strings": [],
+            "spearphishing_indicators": None,
+            "external_apis": None,
+            "ai_analysis": None,
+            "file_deleted_at": "",
+            "uploaded_at": db_analysis.uploaded_at.isoformat() + "Z",
+            "url": analysis.get("url") or db_analysis.filename,
+            "virustotal": virustotal_data,  # Explicitly set, even if None
+            "urlscan": analysis.get("urlscan_result") or url_analysis_result.get("urlscan"),
+            "ip_info": analysis.get("ip_info") or url_analysis_result.get("ip_info"),
+            "domain_info": analysis.get("domain_info") or url_analysis_result.get("domain_info", {}),
+            "analyzed_at": db_analysis.uploaded_at.isoformat() + "Z",
+            "url_analysis_result": url_analysis_result,
+        }
+        
+        return AnalysisDetailResponse(**response_dict)
     else:
         # File analysis response
         clamav_result = analysis.get("clamav_result")
