@@ -306,6 +306,7 @@ docker compose up -d
 
 ## 📚 추가 문서
 
+- [시스템 아키텍처](./ARCHITECTURE.md) - 전체 시스템 아키텍처 및 구성 요소 설명
 - [분석 가이드](./ANALYSIS_GUIDE.md) - 일반 분석 및 AI 분석 동작 방식 상세 설명
 - [외부 API 통합 가이드](./README_EXTERNAL_APIS.md) - VirusTotal, URLScan.io 등 설정 방법
 - [환경 변수 설정 가이드](./ENV_SETUP_GUIDE.md) - API 키 및 환경 변수 설정

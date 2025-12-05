@@ -11,6 +11,45 @@ interface AnalysisResultProps {
     shellcode_patterns: string[]
     suspicious_strings: string[]
     spearphishing_indicators: any
+    entropy?: number
+    file_type_analysis?: {
+      actual_type?: string
+      extension_match?: boolean
+      suspicious?: boolean
+    }
+    office_analysis?: {
+      has_macros?: boolean
+      macro_count?: number
+      auto_exec_macros?: boolean
+      suspicious_macros?: string[]
+    }
+    pdf_analysis?: {
+      has_javascript?: boolean
+      has_forms?: boolean
+      has_actions?: boolean
+      page_count?: number
+      suspicious_objects?: string[]
+    }
+    zip_analysis?: {
+      file_count?: number
+      suspicious_files?: string[]
+      encrypted?: boolean
+      nested_archives?: boolean
+      double_extension_files?: string[]
+    }
+    pe_enhanced?: {
+      suspicious_characteristics?: string[]
+      sections?: Array<{
+        name: string
+        entropy: number
+        characteristics: string[]
+      }>
+    }
+    strings_enhanced?: {
+      urls?: string[]
+      ips?: string[]
+      email_addresses?: string[]
+    }
     external_apis?: {
       file_hashes?: {
         md5?: string
@@ -176,26 +215,8 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
   const gaugeColorClass = getRiskGaugeColor(data.risk_score)
   const friendlySummary = getUserFriendlySummary(data)
 
-  const hasClamav = !!data.clamav_result
-  const hasYara = data.yara_matches.length > 0
-  const hasShellcode = data.shellcode_patterns.length > 0
-  const hasSuspiciousStrings = data.suspicious_strings.length > 0
-  const hasSpear = !!data.spearphishing_indicators
-  const hasVirusTotal = !!data.external_apis?.virustotal
-  const hasMalwareBazaar = !!data.external_apis?.malwarebazaar
-  const hasUrlScans = !!(data.external_apis?.url_scans && data.external_apis.url_scans.length > 0)
-  const hasIpInfo = !!(data.external_apis?.ip_info && data.external_apis.ip_info.length > 0)
-
-  const hasSummaryTable =
-    hasClamav ||
-    hasYara ||
-    hasShellcode ||
-    hasSuspiciousStrings ||
-    hasSpear ||
-    hasVirusTotal ||
-    hasMalwareBazaar ||
-    hasUrlScans ||
-    hasIpInfo
+  // 모든 툴을 표시하기 위해 항상 true로 설정
+  const hasSummaryTable = true
 
   return (
     <div className="bg-slate-900/70 rounded-lg shadow-lg p-6 space-y-6 border border-slate-700">
@@ -501,103 +522,190 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 </tr>
               </thead>
               <tbody>
-                {hasClamav && (
+                {/* ClamAV */}
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">ClamAV</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.clamav_result ? 'text-red-300' : 'text-green-300'}`}>
+                    {data.clamav_result
+                      ? `악성 시그니처 탐지: ${data.clamav_result}`
+                      : '탐지 없음'}
+                  </td>
+                </tr>
+
+                {/* YARA */}
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">YARA 규칙</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.yara_matches.length > 0 ? 'text-orange-300' : 'text-green-300'}`}>
+                    {data.yara_matches.length > 0
+                      ? `${data.yara_matches.length}개 규칙에서 의심 패턴 감지`
+                      : '탐지 없음'}
+                  </td>
+                </tr>
+
+                {/* 엔트로피 분석 */}
+                {data.entropy !== undefined && (
                   <tr className="hover:bg-slate-800/40">
                     <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">ClamAV</td>
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
-                      {data.clamav_result
-                        ? `악성 시그니처 탐지: ${data.clamav_result}`
-                        : '알려진 악성 시그니처를 탐지하지 못했습니다.'}
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">엔트로피 분석</td>
+                    <td className={`px-4 py-2 border-b border-slate-800 ${data.entropy > 7.0 ? 'text-orange-300' : 'text-green-300'}`}>
+                      {data.entropy > 7.5
+                        ? `매우 높은 엔트로피 (${data.entropy.toFixed(2)}/8.0) - 패킹/암호화 가능성 높음`
+                        : data.entropy > 7.0
+                        ? `높은 엔트로피 (${data.entropy.toFixed(2)}/8.0) - 패킹 가능성`
+                        : `정상 범위 (${data.entropy.toFixed(2)}/8.0)`}
                     </td>
                   </tr>
                 )}
 
-                {hasYara && (
+                {/* 파일 타입 검증 */}
+                {data.file_type_analysis && (
                   <tr className="hover:bg-slate-800/40">
                     <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">YARA 규칙</td>
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
-                      {data.yara_matches.length}개 규칙에서 의심 패턴 감지
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">파일 타입 검증</td>
+                    <td className={`px-4 py-2 border-b border-slate-800 ${data.file_type_analysis.suspicious || !data.file_type_analysis.extension_match ? 'text-red-300' : 'text-green-300'}`}>
+                      {data.file_type_analysis.suspicious || !data.file_type_analysis.extension_match
+                        ? `확장자 위조 의심 (실제 타입: ${data.file_type_analysis.actual_type || '알 수 없음'})`
+                        : '확장자 일치 (정상)'}
                     </td>
                   </tr>
                 )}
 
-                {hasShellcode && (
+                {/* PE 강화 분석 */}
+                {data.pe_enhanced && (
                   <tr className="hover:bg-slate-800/40">
                     <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">쉘코드 탐지</td>
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
-                      프로세스 제어를 시도하는 코드 패턴 {data.shellcode_patterns.length}개 발견
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">PE 강화 분석</td>
+                    <td className={`px-4 py-2 border-b border-slate-800 ${data.pe_enhanced.suspicious_characteristics && data.pe_enhanced.suspicious_characteristics.length > 0 ? 'text-orange-300' : 'text-green-300'}`}>
+                      {data.pe_enhanced.suspicious_characteristics && data.pe_enhanced.suspicious_characteristics.length > 0
+                        ? `의심스러운 특성 ${data.pe_enhanced.suspicious_characteristics.length}개 발견`
+                        : '이상 없음'}
                     </td>
                   </tr>
                 )}
 
-                {hasSuspiciousStrings && (
+                {/* 쉘코드 탐지 */}
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">쉘코드 탐지</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.shellcode_patterns.length > 0 ? 'text-red-300' : 'text-green-300'}`}>
+                    {data.shellcode_patterns.length > 0
+                      ? `프로세스 제어를 시도하는 코드 패턴 ${data.shellcode_patterns.length}개 발견`
+                      : '탐지 없음'}
+                  </td>
+                </tr>
+
+                {/* 의심 문자열 분석 */}
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">의심 문자열 분석</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.suspicious_strings.length > 0 ? 'text-orange-300' : 'text-green-300'}`}>
+                    {data.suspicious_strings.length > 0
+                      ? `의심스러운 문자열 ${data.suspicious_strings.length}개 추출`
+                      : '추출 없음'}
+                  </td>
+                </tr>
+
+                {/* Office 문서 분석 */}
+                {data.office_analysis && (
                   <tr className="hover:bg-slate-800/40">
                     <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">의심 문자열 분석</td>
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
-                      의심스러운 문자열 {data.suspicious_strings.length}개 추출
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">Office 문서 분석</td>
+                    <td className={`px-4 py-2 border-b border-slate-800 ${data.office_analysis.auto_exec_macros ? 'text-red-300' : data.office_analysis.has_macros ? 'text-orange-300' : 'text-green-300'}`}>
+                      {data.office_analysis.auto_exec_macros
+                        ? `자동 실행 매크로 발견 (${data.office_analysis.macro_count || 0}개 매크로)`
+                        : data.office_analysis.has_macros
+                        ? `VBA 매크로 발견 (${data.office_analysis.macro_count || 0}개)`
+                        : '매크로 없음'}
                     </td>
                   </tr>
                 )}
 
-                {hasSpear && (
+                {/* PDF 분석 */}
+                {data.pdf_analysis && (
                   <tr className="hover:bg-slate-800/40">
                     <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">스피어피싱 지표</td>
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
-                      이메일 위조, 피싱 키워드, 의심 URL 등 메일 기반 공격 여부를 종합 평가합니다.
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">PDF 분석</td>
+                    <td className={`px-4 py-2 border-b border-slate-800 ${data.pdf_analysis.has_javascript ? 'text-red-300' : 'text-green-300'}`}>
+                      {data.pdf_analysis.has_javascript
+                        ? `JavaScript 포함 (의심스러운 객체 ${data.pdf_analysis.suspicious_objects?.length || 0}개)`
+                        : '이상 없음'}
                     </td>
                   </tr>
                 )}
 
-                {hasVirusTotal && data.external_apis?.virustotal && (
+                {/* ZIP 분석 */}
+                {data.zip_analysis && (
                   <tr className="hover:bg-slate-800/40">
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">VirusTotal</td>
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
-                      {data.external_apis.virustotal.detected} / {data.external_apis.virustotal.total} 엔진이 악성으로 탐지
-                      {data.external_apis.virustotal.detected > 0 &&
-                        ` (${Math.round(
-                          (data.external_apis.virustotal.detected / data.external_apis.virustotal.total) * 100
-                        )}% 탐지)`}
+                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">ZIP 분석</td>
+                    <td className={`px-4 py-2 border-b border-slate-800 ${data.zip_analysis.suspicious_files && data.zip_analysis.suspicious_files.length > 0 ? 'text-red-300' : 'text-green-300'}`}>
+                      {data.zip_analysis.suspicious_files && data.zip_analysis.suspicious_files.length > 0
+                        ? `의심스러운 파일 ${data.zip_analysis.suspicious_files.length}개 발견 (내부 파일 ${data.zip_analysis.file_count || 0}개)`
+                        : '이상 없음'}
                     </td>
                   </tr>
                 )}
 
-                {hasMalwareBazaar && data.external_apis?.malwarebazaar && (
-                  <tr className="hover:bg-slate-800/40">
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">MalwareBazaar</td>
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
-                      {data.external_apis.malwarebazaar.signature
+                {/* 스피어피싱 지표 */}
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">스피어피싱 지표</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.spearphishing_indicators && (data.spearphishing_indicators.spoofed_sender || data.spearphishing_indicators.phishing_keywords?.length > 0 || data.spearphishing_indicators.suspicious_urls?.length > 0 || data.spearphishing_indicators.has_double_extension) ? 'text-orange-300' : 'text-green-300'}`}>
+                    {data.spearphishing_indicators && (data.spearphishing_indicators.spoofed_sender || data.spearphishing_indicators.phishing_keywords?.length > 0 || data.spearphishing_indicators.suspicious_urls?.length > 0 || data.spearphishing_indicators.has_double_extension)
+                      ? '이메일 기반 공격 징후 발견'
+                      : '탐지 없음'}
+                  </td>
+                </tr>
+
+                {/* VirusTotal */}
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">VirusTotal</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.external_apis?.virustotal ? (data.external_apis.virustotal.detected > 0 ? 'text-red-300' : 'text-green-300') : 'text-slate-400'}`}>
+                    {data.external_apis?.virustotal
+                      ? data.external_apis.virustotal.detected > 0
+                        ? `${data.external_apis.virustotal.detected} / ${data.external_apis.virustotal.total} 엔진이 악성으로 탐지 (${Math.round((data.external_apis.virustotal.detected / data.external_apis.virustotal.total) * 100)}% 탐지)`
+                        : '탐지 없음'
+                      : '조회 안 됨'}
+                  </td>
+                </tr>
+
+                {/* MalwareBazaar */}
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">MalwareBazaar</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.external_apis?.malwarebazaar ? (data.external_apis.malwarebazaar.signature ? 'text-red-300' : 'text-green-300') : 'text-slate-400'}`}>
+                    {data.external_apis?.malwarebazaar
+                      ? data.external_apis.malwarebazaar.signature
                         ? `알려진 악성 샘플 시그니처: ${data.external_apis.malwarebazaar.signature}`
-                        : '해당 해시로 등록된 악성 샘플 정보를 조회했습니다.'}
-                    </td>
-                  </tr>
-                )}
+                        : '샘플 없음'
+                      : '조회 안 됨'}
+                  </td>
+                </tr>
 
-                {hasUrlScans && (
-                  <tr className="hover:bg-slate-800/40">
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">URL 스캔</td>
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
-                      파일 내부에서 탐지된 URL {data.external_apis?.url_scans?.length || 0}개에 대해 위험도를 평가했습니다.
-                    </td>
-                  </tr>
-                )}
+                {/* URL 스캔 */}
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">URL 스캔</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.external_apis?.url_scans && data.external_apis.url_scans.length > 0 ? (data.external_apis.url_scans.some(s => s.malicious) ? 'text-red-300' : 'text-green-300') : 'text-slate-400'}`}>
+                    {data.external_apis?.url_scans && data.external_apis.url_scans.length > 0
+                      ? `파일 내부 URL ${data.external_apis.url_scans.length}개 분석 (악성 ${data.external_apis.url_scans.filter(s => s.malicious).length}개)`
+                      : 'URL 없음'}
+                  </td>
+                </tr>
 
-                {hasIpInfo && (
-                  <tr className="hover:bg-slate-800/40">
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">IP 정보 조회</td>
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">
-                      의심 IP 주소에 대한 위치·ISP 정보를 기반으로 악성 인프라 여부를 점검했습니다.
-                    </td>
-                  </tr>
-                )}
+                {/* IP 정보 조회 */}
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">외부 서비스</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">IP 정보 조회</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.external_apis?.ip_info && data.external_apis.ip_info.length > 0 ? 'text-green-300' : 'text-slate-400'}`}>
+                    {data.external_apis?.ip_info && data.external_apis.ip_info.length > 0
+                      ? `IP 주소 ${data.external_apis.ip_info.length}개 정보 조회 완료`
+                      : 'IP 없음'}
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
