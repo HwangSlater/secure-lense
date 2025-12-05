@@ -340,20 +340,34 @@ async def analyze_url_endpoint(
         # Analyze URL using external APIs
         url_analysis_result = analyze_url(url)
         
-        # Calculate risk score based on URLScan.io results
+        # Calculate risk score based on VirusTotal (primary) and URLScan.io (secondary) results
         risk_score = 0
-        if url_analysis_result.get('urlscan'):
+        
+        # VirusTotal URL scan results (primary - more reliable for malicious detection)
+        if url_analysis_result.get('virustotal'):
+            vt_result = url_analysis_result['virustotal']
+            if isinstance(vt_result, dict) and vt_result.get('detected', 0) > 0:
+                detected_ratio = vt_result['detected'] / max(vt_result.get('total', 1), 1)
+                if detected_ratio >= 0.5:  # 50%+ detection
+                    risk_score = min(100, 80 + int(detected_ratio * 20))
+                elif detected_ratio >= 0.2:  # 20%+ detection
+                    risk_score = min(80, 60 + int(detected_ratio * 20))
+                else:  # Any detection
+                    risk_score = min(60, 40 + int(detected_ratio * 20))
+        
+        # URLScan.io results (secondary - for behavior analysis)
+        if url_analysis_result.get('urlscan') and risk_score < 70:
             urlscan = url_analysis_result['urlscan']
             if isinstance(urlscan, dict):
                 # Check if URLScan.io detected it as malicious
                 if urlscan.get('malicious'):
                     threat_score = urlscan.get('threat_score', 0) or 0
-                    risk_score = min(100, 70 + threat_score)
+                    risk_score = max(risk_score, min(100, 70 + threat_score))
                 else:
                     # Check threat score (0-10 scale)
                     threat_score = urlscan.get('threat_score', 0) or 0
                     if threat_score > 0:
-                        risk_score = min(70, threat_score * 7)  # Convert 0-10 to 0-70
+                        risk_score = max(risk_score, min(70, threat_score * 7))  # Convert 0-10 to 0-70
         
         # Determine risk level
         if risk_score >= 86:
@@ -376,6 +390,7 @@ async def analyze_url_endpoint(
             "risk_score": risk_score,
             "risk_level": risk_level,
             "url_analysis_result": url_analysis_result,
+            "virustotal_result": url_analysis_result.get('virustotal'),
             "urlscan_result": url_analysis_result.get('urlscan'),
             "ip_info": url_analysis_result.get('ip_info'),
             "domain_info": url_analysis_result.get('domain_info', {})

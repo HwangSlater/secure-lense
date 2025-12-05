@@ -250,8 +250,8 @@ export default function DashboardPage() {
                   <div>
                     <span className="font-semibold text-cyan-300">URL 분석</span>
                     <ul className="mt-1 ml-4 list-disc text-slate-300 space-y-1">
-                      <li>URLScan.io 실시간 스캔</li>
-                      <li>악성 URL 탐지 및 위협 점수 평가</li>
+                      <li>VirusTotal: 다수의 백신 엔진으로 악성 URL 탐지</li>
+                      <li>URLScan.io: URL 동작 분석 및 스크린샷</li>
                       <li>IP 정보 및 지리적 위치 확인</li>
                     </ul>
                   </div>

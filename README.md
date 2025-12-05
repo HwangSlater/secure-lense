@@ -17,9 +17,10 @@ SecureLens는 의심스러운 파일과 URL을 안전하게 분석하여 악성�
 
 ### URL 분석
 이메일에 포함된 링크나 의심스러운 URL을 입력하면:
-- ✅ **실시간 URL 스캔**: URLScan.io를 통한 위협 분석
+- ✅ **실시간 URL 분석**: VirusTotal과 URLScan.io를 통한 URL 분석
+  - **VirusTotal**: 다수의 백신 엔진으로 악성 URL 탐지 (주요 판단 기준)
+  - **URLScan.io**: URL 동작 분석 및 스크린샷 (네트워크 요청 기록)
 - ✅ **도메인/IP 정보**: 지오로케이션 및 ISP 정보 확인
-- ✅ **악성 URL 탐지**: 악성 사이트로 판단된 경우 즉시 경고
 
 ---
 
@@ -58,7 +59,8 @@ SecureLens는 의심스러운 파일과 URL을 안전하게 분석하여 악성�
 ### 4. 외부 위협 인텔리전스
 - **VirusTotal**: 다수의 백신 엔진 탐지 결과
 - **MalwareBazaar**: 악성코드 샘플 데이터베이스 검색
-- **URLScan.io**: URL 실시간 스캔 및 스크린샷
+- **VirusTotal URL 스캔**: 다수의 백신 엔진으로 악성 URL 탐지
+- **URLScan.io**: URL 동작 분석 및 스크린샷 (위협 점수 제공)
 - **IP-API**: IP 주소 지오로케이션 정보
 
 ### 5. 사용자 관리
@@ -118,8 +120,8 @@ SecureLens는 의심스러운 파일과 URL을 안전하게 분석하여 악성�
 ### 2. URL 분석하기
 1. 대시보드의 "URL 분석" 섹션으로 이동
 2. 의심스러운 URL 입력
-3. URLScan.io를 통한 실시간 스캔 수행
-4. 위협 점수 및 상세 정보 확인
+3. VirusTotal과 URLScan.io를 통한 분석 수행
+4. VirusTotal 탐지율, URLScan.io 위협 점수 및 상세 정보 확인
 
 ### 3. AI 심층 분석
 1. 분석 결과 페이지에서 "AI 심층 분석" 섹션 확인
@@ -200,7 +202,8 @@ SecureLens는 의심스러운 파일과 URL을 안전하게 분석하여 악성�
 ### 외부 API 통합
 - **VirusTotal**: 파일 해시 검색
 - **Abuse.ch MalwareBazaar**: 악성코드 샘플 정보
-- **URLScan.io**: URL 스캔
+- **VirusTotal**: URL 스캔 (다수의 백신 엔진)
+- **URLScan.io**: URL 동작 분석
 - **IP-API**: IP 지오로케이션
 
 ---
@@ -290,8 +293,8 @@ docker compose up -d
 ### 시나리오 2: 피싱 이메일 링크 확인
 1. 이메일에 포함된 URL 복사
 2. SecureLens의 URL 분석에 입력
-3. URLScan.io 스캔 결과 확인
-4. 악성 URL인 경우 즉시 접속 중단
+3. VirusTotal과 URLScan.io 분석 결과 확인
+4. VirusTotal에서 악성으로 탐지되거나 URLScan.io에서 의심스러운 동작이 발견된 경우 즉시 접속 중단
 
 ### 시나리오 3: 다운로드한 파일 검증
 1. 인터넷에서 다운로드한 실행 파일 업로드

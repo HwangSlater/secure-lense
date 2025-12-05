@@ -1113,11 +1113,22 @@ def calculate_risk_score(
         if external_apis.get("malwarebazaar"):
             score += 20
         
-        # URLScan malicious URLs
+        # URL scans (VirusTotal and URLScan.io)
         url_scans = external_apis.get("url_scans", [])
-        malicious_urls = sum(1 for scan in url_scans if scan.get("malicious", False))
-        if malicious_urls > 0:
-            score += min(15, malicious_urls * 5)
+        for scan in url_scans:
+            # VirusTotal URL detection (primary - more reliable)
+            vt_url = scan.get("virustotal")
+            if vt_url and isinstance(vt_url, dict) and vt_url.get("detected", 0) > 0:
+                detected_ratio = vt_url["detected"] / max(vt_url.get("total", 1), 1)
+                if detected_ratio >= 0.5:  # 50%+ detection
+                    score += 20
+                elif detected_ratio >= 0.2:  # 20%+ detection
+                    score += 15
+                else:  # Any detection
+                    score += 10
+            # URLScan.io malicious detection (secondary)
+            elif scan.get("urlscan", {}).get("malicious", False):
+                score += 15
     
     # Cap at 100
     score = min(score, 100)

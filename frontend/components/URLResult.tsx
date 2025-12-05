@@ -6,6 +6,15 @@ interface URLResultProps {
     url: string
     risk_score: number
     risk_level: string
+    virustotal?: {
+      url: string
+      scan_id?: string
+      scan_date?: string
+      permalink?: string
+      detected: number
+      total: number
+      scans?: Record<string, any>
+    }
     urlscan?: {
       url: string
       domain: string
@@ -103,6 +112,60 @@ export default function URLResult({ data }: URLResultProps) {
           ></div>
         </div>
       </div>
+
+      {/* VirusTotal Results */}
+      {data.virustotal && (
+        <div className={`p-4 rounded-md border ${
+          data.virustotal.detected > 0
+            ? 'bg-red-900/30 border-red-700/50'
+            : 'bg-slate-800/50 border-slate-700'
+        }`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-semibold text-slate-200">VirusTotal 분석 결과</span>
+            {data.virustotal.permalink && (
+              <a
+                href={data.virustotal.permalink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-cyan-300 hover:text-cyan-200 underline"
+              >
+                상세 보기 →
+              </a>
+            )}
+          </div>
+          
+          {data.virustotal.detected > 0 && (
+            <div className="mb-3 p-2 bg-red-800/50 rounded border border-red-600/50">
+              <span className="text-red-300 font-semibold">
+                ⚠️ {data.virustotal.detected}개 엔진이 악성으로 탐지
+              </span>
+            </div>
+          )}
+
+          <div className="space-y-2 text-sm">
+            <div>
+              <span className="text-slate-400">탐지율:</span>{' '}
+              <span className={`font-semibold ${
+                data.virustotal.detected > 0
+                  ? data.virustotal.detected / data.virustotal.total >= 0.5
+                    ? 'text-red-300'
+                    : data.virustotal.detected / data.virustotal.total >= 0.2
+                    ? 'text-orange-300'
+                    : 'text-yellow-300'
+                  : 'text-green-300'
+              }`}>
+                {data.virustotal.detected}/{data.virustotal.total} ({data.virustotal.total > 0 ? Math.round((data.virustotal.detected / data.virustotal.total) * 100) : 0}%)
+              </span>
+            </div>
+            {data.virustotal.scan_date && (
+              <div>
+                <span className="text-slate-400">스캔 시각:</span>{' '}
+                <span className="text-slate-200">{data.virustotal.scan_date}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* URLScan Results */}
       {data.urlscan && (

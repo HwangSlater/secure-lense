@@ -436,18 +436,22 @@
 
 **URL 스캔** (파일 내 URL이 있는 경우):
 1. 파일에서 URL 추출
-2. URLScan.io로 각 URL 스캔 (최대 3개)
+2. VirusTotal로 각 URL 스캔 (최대 3개) - 다수의 백신 엔진으로 악성 URL 탐지
+3. URLScan.io로 각 URL 동작 분석 (최대 3개) - 스크린샷, 네트워크 요청 기록
 
 **IP 정보 조회** (파일 내 IP가 있는 경우):
 1. 파일에서 IP 주소 추출
 2. IP-API로 지오로케이션 정보 조회 (최대 5개)
 
 **위험도 영향**:
-- VirusTotal 50% 이상 탐지: +25점
-- VirusTotal 20-50% 탐지: +15점
-- VirusTotal 탐지: +10점
+- VirusTotal 파일 해시 50% 이상 탐지: +25점
+- VirusTotal 파일 해시 20-50% 탐지: +15점
+- VirusTotal 파일 해시 탐지: +10점
+- VirusTotal URL 50% 이상 탐지: +20점
+- VirusTotal URL 20-50% 탐지: +15점
+- VirusTotal URL 탐지: +10점
+- URLScan.io 악성 URL: +15점
 - MalwareBazaar 매칭: +20점
-- 악성 URL: +15점 (최대)
 
 ### 19. 위험도 점수 계산
 

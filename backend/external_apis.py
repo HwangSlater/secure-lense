@@ -2,8 +2,9 @@
 External API integrations for enhanced malware analysis
 Free tier APIs:
 - VirusTotal: Hash-based lookups (4 req/min, 500/day)
+- VirusTotal: URL scanning (4 req/min, 500/day)
 - Abuse.ch MalwareBazaar: Sample information (unlimited)
-- URLScan.io: URL scanning (100/day)
+- URLScan.io: URL behavior analysis (100/day) - screenshots, network requests
 - IP-API: IP geolocation and threat intel (45 req/min)
 """
 
@@ -125,6 +126,79 @@ def check_malwarebazaar(file_hash: str) -> Optional[Dict]:
     
     except Exception as e:
         print(f"MalwareBazaar API error: {e}")
+    
+    return None
+
+
+def scan_url_with_virustotal(url: str) -> Optional[Dict]:
+    """Scan URL with VirusTotal (free tier: 4 req/min, 500/day)"""
+    if not VIRUSTOTAL_API_KEY:
+        return None
+    
+    global _last_vt_request
+    current_time = time.time()
+    
+    # Rate limiting
+    if current_time - _last_vt_request < _vt_request_interval:
+        return None
+    
+    try:
+        # Submit URL for scanning
+        submit_url = "https://www.virustotal.com/vtapi/v2/url/scan"
+        params = {
+            "apikey": VIRUSTOTAL_API_KEY,
+            "url": url
+        }
+        
+        response = requests.post(submit_url, params=params, timeout=10)
+        _last_vt_request = time.time()
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("response_code") == 1:  # Success
+                scan_id = data.get("scan_id")
+                
+                # Wait a bit for scan to complete
+                time.sleep(2)
+                
+                # Get scan results
+                report_url = "https://www.virustotal.com/vtapi/v2/url/report"
+                report_params = {
+                    "apikey": VIRUSTOTAL_API_KEY,
+                    "resource": url,
+                    "scan": 1  # Force rescan if needed
+                }
+                
+                # Try up to 3 times with delays
+                for attempt in range(3):
+                    report_response = requests.get(report_url, params=report_params, timeout=10)
+                    
+                    if report_response.status_code == 200:
+                        report_data = report_response.json()
+                        if report_data.get("response_code") == 1:  # Results available
+                            return {
+                                "url": url,
+                                "scan_id": scan_id,
+                                "scan_date": report_data.get("scan_date"),
+                                "permalink": report_data.get("permalink"),
+                                "detected": report_data.get("positives", 0),
+                                "total": report_data.get("total", 0),
+                                "scans": report_data.get("scans", {})
+                            }
+                        elif report_data.get("response_code") == 0:
+                            # Still scanning, wait longer
+                            time.sleep(3)
+                    elif report_response.status_code == 204:
+                        # Rate limit exceeded
+                        return None
+                    else:
+                        break
+        elif response.status_code == 204:
+            # Rate limit exceeded
+            return None
+        
+    except Exception as e:
+        print(f"VirusTotal URL scan API error: {e}")
     
     return None
 
@@ -261,6 +335,7 @@ def analyze_url(url: str) -> Dict:
     """Analyze a URL using external APIs"""
     result = {
         "url": url,
+        "virustotal": None,
         "urlscan": None,
         "ip_info": None,
         "domain_info": {}
@@ -294,7 +369,12 @@ def analyze_url(url: str) -> Dict:
     except Exception as e:
         print(f"URL parsing error: {e}")
     
-    # Scan URL with URLScan.io
+    # Scan URL with VirusTotal (primary for malicious detection)
+    vt_result = scan_url_with_virustotal(url)
+    if vt_result:
+        result["virustotal"] = vt_result
+    
+    # Scan URL with URLScan.io (for behavior analysis - screenshots, network requests)
     urlscan_result = scan_url_with_urlscan(url)
     if urlscan_result:
         result["urlscan"] = urlscan_result
@@ -332,9 +412,18 @@ def analyze_with_external_apis(file_path: str, file_content: bytes = None) -> Di
     if file_content:
         urls = extract_urls_from_content(file_content)
         for url in urls[:3]:  # Limit to 3 URL scans
-            url_scan = scan_url_with_urlscan(url)
-            if url_scan:
-                result["url_scans"].append(url_scan)
+            # Use VirusTotal for malicious detection (primary)
+            vt_url_result = scan_url_with_virustotal(url)
+            url_scan_data = {
+                "url": url,
+                "virustotal": vt_url_result
+            }
+            # Use URLScan.io for behavior analysis (secondary)
+            urlscan_result = scan_url_with_urlscan(url)
+            if urlscan_result:
+                url_scan_data["urlscan"] = urlscan_result
+            if vt_url_result or urlscan_result:
+                result["url_scans"].append(url_scan_data)
         
         # Extract and check IPs
         ips = extract_ips_from_content(file_content)
