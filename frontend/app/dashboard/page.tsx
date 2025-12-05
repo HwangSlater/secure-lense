@@ -235,6 +235,10 @@ export default function DashboardPage() {
                       <li>YARA: 패턴 매칭 규칙 탐지</li>
                       <li>엔트로피 분석: 패킹/암호화 탐지</li>
                       <li>파일 타입 검증: 확장자 위조 탐지</li>
+                      <li>파일 해시 계산: MD5, SHA1, SHA256 (위협 인텔리전스 연동)</li>
+                      <li>파일 크기 분석: 비정상 크기 탐지 (드로퍼, 데이터 유출)</li>
+                      <li>파일명 패턴 분석: 이중 확장자, 의심 키워드, 호모그래프 공격</li>
+                      <li>Base64 인코딩 탐지: 난독화 및 페이로드 숨김 탐지</li>
                       <li>PE 헤더 분석: 섹션 이상, API 임포트 분석</li>
                       <li>쉘코드 및 의심 문자열 탐지</li>
                       <li>Office 문서: VBA 매크로, 자동 실행 매크로</li>
@@ -303,6 +307,9 @@ export default function DashboardPage() {
                     <li>YARA 매칭: 최대 +30점</li>
                     <li>엔트로피 7.5 이상: +20점</li>
                     <li>파일 타입 불일치: +15점</li>
+                    <li>파일명 패턴 이상: 최대 +15점</li>
+                    <li>파일 크기 이상: 최대 +10점</li>
+                    <li>Base64 인코딩 의심: 최대 +15점</li>
                     <li>Office 자동 실행 매크로: +20점</li>
                     <li>VirusTotal 50% 이상 탐지: +25점</li>
                   </ul>

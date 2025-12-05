@@ -17,6 +17,8 @@ from itertools import islice
 import zipfile
 import math
 import collections
+import hashlib
+import base64
 
 # Optional imports for enhanced analysis
 try:
@@ -574,6 +576,188 @@ def analyze_zip(file_path: str) -> Dict:
     return result
 
 
+def calculate_file_hashes(file_path: str) -> Dict:
+    """Calculate MD5, SHA1, and SHA256 hashes of a file"""
+    result = {
+        "md5": None,
+        "sha1": None,
+        "sha256": None
+    }
+    
+    try:
+        hash_md5 = hashlib.md5()
+        hash_sha1 = hashlib.sha1()
+        hash_sha256 = hashlib.sha256()
+        
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+                hash_sha1.update(chunk)
+                hash_sha256.update(chunk)
+        
+        result["md5"] = hash_md5.hexdigest()
+        result["sha1"] = hash_sha1.hexdigest()
+        result["sha256"] = hash_sha256.hexdigest()
+    except Exception as e:
+        print(f"Error calculating file hashes: {e}")
+    
+    return result
+
+
+def analyze_file_size(file_path: str) -> Dict:
+    """Analyze file size for anomalies"""
+    result = {
+        "size_bytes": 0,
+        "size_mb": 0.0,
+        "suspicious": False,
+        "anomalies": []
+    }
+    
+    try:
+        size = os.path.getsize(file_path)
+        result["size_bytes"] = size
+        result["size_mb"] = round(size / (1024 * 1024), 2)
+        
+        # Check for suspicious sizes
+        # Too small (less than 1KB) - might be a dropper or incomplete file
+        if size < 1024:
+            result["suspicious"] = True
+            result["anomalies"].append("파일 크기가 매우 작음 (1KB 미만) - 불완전한 파일 또는 드로퍼 가능성")
+        
+        # Too large (more than 100MB) - might be a data exfiltration or oversized payload
+        if size > 100 * 1024 * 1024:
+            result["suspicious"] = True
+            result["anomalies"].append("파일 크기가 매우 큼 (100MB 초과) - 데이터 유출 또는 과도한 페이로드 가능성")
+        
+        # Suspiciously small for executable (less than 10KB for .exe/.dll)
+        if file_path.lower().endswith(('.exe', '.dll')) and size < 10 * 1024:
+            result["suspicious"] = True
+            result["anomalies"].append("실행 파일 크기가 비정상적으로 작음 (10KB 미만)")
+        
+    except Exception as e:
+        print(f"Error analyzing file size: {e}")
+    
+    return result
+
+
+def analyze_filename_pattern(filename: str) -> Dict:
+    """Analyze filename for suspicious patterns"""
+    result = {
+        "suspicious": False,
+        "anomalies": [],
+        "patterns_detected": []
+    }
+    
+    try:
+        filename_lower = filename.lower()
+        
+        # Check for double extensions
+        if re.search(r'\.(pdf|doc|docx|zip|jpg|png|txt|gif)\.(exe|bat|cmd|scr|vbs|js|ps1)', filename_lower):
+            result["suspicious"] = True
+            result["anomalies"].append("이중 확장자 발견 - 확장자 위조 시도")
+            result["patterns_detected"].append("double_extension")
+        
+        # Check for suspicious keywords in filename
+        suspicious_keywords = [
+            'invoice', 'receipt', 'document', 'scan', 'photo', 'image',
+            'urgent', 'important', 'readme', 'install', 'update', 'patch',
+            'invoice', 'receipt', 'document', 'scan', 'photo', 'image',
+            '긴급', '중요', '확인', '인증', '업데이트', '설치'
+        ]
+        
+        found_keywords = []
+        for keyword in suspicious_keywords:
+            if keyword in filename_lower:
+                found_keywords.append(keyword)
+        
+        if found_keywords:
+            result["suspicious"] = True
+            result["anomalies"].append(f"의심스러운 키워드 발견: {', '.join(found_keywords[:5])}")
+            result["patterns_detected"].append("suspicious_keywords")
+        
+        # Check for random-looking filenames (many random characters)
+        if re.search(r'^[a-z0-9]{20,}', filename_lower):
+            result["suspicious"] = True
+            result["anomalies"].append("랜덤 문자로 구성된 파일명 - 악성코드 생성 파일 가능성")
+            result["patterns_detected"].append("random_filename")
+        
+        # Check for spaces and special characters (common in phishing)
+        if filename.count(' ') > 3:
+            result["suspicious"] = True
+            result["anomalies"].append("과도한 공백 문자 - 피싱 파일명 패턴")
+            result["patterns_detected"].append("excessive_spaces")
+        
+        # Check for Unicode characters (homograph attacks)
+        if any(ord(c) > 127 for c in filename):
+            result["suspicious"] = True
+            result["anomalies"].append("유니코드 문자 포함 - 호모그래프 공격 가능성")
+            result["patterns_detected"].append("unicode_characters")
+        
+    except Exception as e:
+        print(f"Error analyzing filename pattern: {e}")
+    
+    return result
+
+
+def detect_base64_encoding(file_path: str) -> Dict:
+    """Detect Base64 encoded content in file"""
+    result = {
+        "has_base64": False,
+        "base64_strings": [],
+        "suspicious": False,
+        "anomalies": []
+    }
+    
+    try:
+        with open(file_path, 'rb') as f:
+            content = f.read()
+        
+        # Base64 pattern: A-Z, a-z, 0-9, +, /, = (padding)
+        # Base64 strings are typically longer than 20 characters
+        base64_pattern = rb'[A-Za-z0-9+/]{20,}={0,2}'
+        matches = re.finditer(base64_pattern, content)
+        
+        base64_strings = []
+        for match in islice(matches, 50):  # Limit to 50 matches
+            try:
+                base64_str = match.group(0).decode('ascii')
+                # Try to decode to verify it's valid Base64
+                try:
+                    decoded = base64.b64decode(base64_str, validate=True)
+                    # Only add if decoded data is substantial (more than 10 bytes)
+                    if len(decoded) > 10:
+                        base64_strings.append({
+                            "string": base64_str[:50] + "..." if len(base64_str) > 50 else base64_str,
+                            "decoded_size": len(decoded),
+                            "offset": hex(match.start())
+                        })
+                except:
+                    # Invalid Base64, skip
+                    pass
+            except:
+                pass
+        
+        if base64_strings:
+            result["has_base64"] = True
+            result["base64_strings"] = base64_strings[:10]  # Limit to 10
+            
+            # Check if there are many Base64 strings (suspicious)
+            if len(base64_strings) > 5:
+                result["suspicious"] = True
+                result["anomalies"].append(f"다수의 Base64 인코딩 문자열 발견 ({len(base64_strings)}개) - 난독화 또는 페이로드 숨김 가능성")
+            
+            # Check for very long Base64 strings (suspicious)
+            long_strings = [s for s in base64_strings if s["decoded_size"] > 1000]
+            if long_strings:
+                result["suspicious"] = True
+                result["anomalies"].append(f"대용량 Base64 인코딩 데이터 발견 (최대 {max(s['decoded_size'] for s in long_strings)} 바이트)")
+    
+    except Exception as e:
+        print(f"Error detecting Base64 encoding: {e}")
+    
+    return result
+
+
 def extract_strings_enhanced(file_path: str) -> Dict:
     """Enhanced string extraction with multiple encodings"""
     result = {
@@ -808,7 +992,10 @@ def calculate_risk_score(
     office_analysis: Optional[Dict] = None,
     pdf_analysis: Optional[Dict] = None,
     zip_analysis: Optional[Dict] = None,
-    pe_enhanced: Optional[Dict] = None
+    pe_enhanced: Optional[Dict] = None,
+    file_size_analysis: Optional[Dict] = None,
+    filename_pattern_analysis: Optional[Dict] = None,
+    base64_analysis: Optional[Dict] = None
 ) -> Tuple[int, str]:
     """Calculate risk score (0-100) and risk level"""
     score = 0
@@ -892,9 +1079,22 @@ def calculate_risk_score(
     if len(email_analysis.get("suspicious_urls", [])) > 3:
         score += 10
     
-    # Double extension in filename
+    # Double extension in filename (now handled by filename_pattern_analysis)
+    # This is kept for backward compatibility
     if re.search(r'\.(pdf|doc|docx|zip)\.(exe|bat|cmd)', filename, re.IGNORECASE):
         score += 15
+    
+    # Filename pattern analysis
+    if filename_pattern_analysis and filename_pattern_analysis.get("suspicious"):
+        score += min(15, len(filename_pattern_analysis.get("anomalies", [])) * 5)
+    
+    # File size anomalies
+    if file_size_analysis and file_size_analysis.get("suspicious"):
+        score += min(10, len(file_size_analysis.get("anomalies", [])) * 5)
+    
+    # Base64 encoding detection
+    if base64_analysis and base64_analysis.get("suspicious"):
+        score += min(15, len(base64_analysis.get("anomalies", [])) * 5)
     
     # External API results
     if external_apis:
@@ -961,6 +1161,10 @@ def analyze_file(file_path: str, original_filename: str) -> Dict:
         "zip_analysis": {},
         "pe_enhanced": {},
         "strings_enhanced": {},
+        "file_hashes": {},
+        "file_size_analysis": {},
+        "filename_pattern_analysis": {},
+        "base64_analysis": {},
         "risk_score": 0,
         "risk_level": "매우 낮음"
     }
@@ -1026,6 +1230,22 @@ def analyze_file(file_path: str, original_filename: str) -> Dict:
     strings_enhanced = extract_strings_enhanced(file_path)
     result["strings_enhanced"] = strings_enhanced
     
+    # File hash calculation
+    file_hashes = calculate_file_hashes(file_path)
+    result["file_hashes"] = file_hashes
+    
+    # File size analysis
+    file_size_analysis = analyze_file_size(file_path)
+    result["file_size_analysis"] = file_size_analysis
+    
+    # Filename pattern analysis
+    filename_pattern_analysis = analyze_filename_pattern(original_filename)
+    result["filename_pattern_analysis"] = filename_pattern_analysis
+    
+    # Base64 encoding detection
+    base64_analysis = detect_base64_encoding(file_path)
+    result["base64_analysis"] = base64_analysis
+    
     # External API analysis (async, non-blocking)
     external_apis_result = {}
     if EXTERNAL_APIS_AVAILABLE:
@@ -1052,7 +1272,10 @@ def analyze_file(file_path: str, original_filename: str) -> Dict:
         office_analysis,
         pdf_analysis,
         zip_analysis,
-        pe_enhanced
+        pe_enhanced,
+        file_size_analysis,
+        filename_pattern_analysis,
+        base64_analysis
     )
     result["risk_score"] = risk_score
     result["risk_level"] = risk_level

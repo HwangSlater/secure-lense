@@ -124,6 +124,10 @@ class AnalysisDetailResponse(BaseModel):
     zip_analysis: Optional[Dict] = None
     pe_enhanced: Optional[Dict] = None
     strings_enhanced: Optional[Dict] = None
+    file_hashes: Optional[Dict] = None
+    file_size_analysis: Optional[Dict] = None
+    filename_pattern_analysis: Optional[Dict] = None
+    base64_analysis: Optional[Dict] = None
     # URL analysis fields
     url: Optional[str] = None
     urlscan: Optional[Dict] = None
@@ -1020,6 +1024,10 @@ async def get_analysis_detail(
             zip_analysis=analysis.get("zip_analysis"),
             pe_enhanced=analysis.get("pe_enhanced"),
             strings_enhanced=analysis.get("strings_enhanced"),
+            file_hashes=analysis.get("file_hashes"),
+            file_size_analysis=analysis.get("file_size_analysis"),
+            filename_pattern_analysis=analysis.get("filename_pattern_analysis"),
+            base64_analysis=analysis.get("base64_analysis"),
         )
 
 

@@ -137,43 +137,59 @@ SecureLens는 **마이크로서비스 아키텍처**를 기반으로 하며, Doc
 │  │    → python-magic                 │  │
 │  └───────────────────────────────────┘  │
 │  ┌───────────────────────────────────┐  │
-│  │ 5. Binary Analyzer                │  │
+│  │ 5. File Hash Calculator           │  │
+│  │    → MD5, SHA1, SHA256            │  │
+│  └───────────────────────────────────┘  │
+│  ┌───────────────────────────────────┐  │
+│  │ 6. File Size Analyzer             │  │
+│  │    → Anomaly Detection            │  │
+│  └───────────────────────────────────┘  │
+│  ┌───────────────────────────────────┐  │
+│  │ 7. Filename Pattern Analyzer      │  │
+│  │    → Double Extension, Keywords  │  │
+│  └───────────────────────────────────┘  │
+│  ┌───────────────────────────────────┐  │
+│  │ 8. Base64 Encoding Detector       │  │
+│  │    → Obfuscation Detection        │  │
+│  └───────────────────────────────────┘  │
+│  ┌───────────────────────────────────┐  │
+│  │ 9. Binary Analyzer                │  │
 │  │    → Shellcode, Strings           │  │
 │  └───────────────────────────────────┘  │
 │  ┌───────────────────────────────────┐  │
-│  │ 6. PE Analyzer (pefile)           │  │
-│  │    → Header, Sections, Imports    │  │
+│  │ 10. PE Analyzer (pefile)          │  │
+│  │     → Header, Sections, Imports   │  │
 │  └───────────────────────────────────┘  │
 │  ┌───────────────────────────────────┐  │
-│  │ 7. PE Enhanced Analyzer (LIEF)    │  │
-│  │    → Section Entropy, APIs        │  │
+│  │ 11. PE Enhanced Analyzer (LIEF)   │  │
+│  │     → Section Entropy, APIs       │  │
 │  └───────────────────────────────────┘  │
 │  ┌───────────────────────────────────┐  │
-│  │ 8. Office Analyzer (oletools)    │  │
-│  │    → VBA Macros, Auto-exec        │  │
+│  │ 12. Office Analyzer (oletools)    │  │
+│  │     → VBA Macros, Auto-exec       │  │
 │  └───────────────────────────────────┘  │
 │  ┌───────────────────────────────────┐  │
-│  │ 9. PDF Analyzer (PyPDF2)          │  │
-│  │    → JavaScript, Actions          │  │
+│  │ 13. PDF Analyzer (PyPDF2)         │  │
+│  │     → JavaScript, Actions         │  │
 │  └───────────────────────────────────┘  │
 │  ┌───────────────────────────────────┐  │
-│  │ 10. ZIP Analyzer                  │  │
+│  │ 14. ZIP Analyzer                  │  │
 │  │     → Nested Archives, Encryption │  │
 │  └───────────────────────────────────┘  │
 │  ┌───────────────────────────────────┐  │
-│  │ 11. String Extractor              │  │
+│  │ 15. String Extractor              │  │
 │  │     → URLs, IPs, Emails           │  │
 │  └───────────────────────────────────┘  │
 │  ┌───────────────────────────────────┐  │
-│  │ 12. Email Analyzer                 │  │
-│  │     → Spearphishing Indicators     │  │
+│  │ 16. Email Analyzer                 │  │
+│  │     → Spearphishing Indicators    │  │
 │  └───────────────────────────────────┘  │
 │  ┌───────────────────────────────────┐  │
-│  │ 13. External API Analyzer         │  │
-│  │     → VirusTotal, MalwareBazaar  │  │
+│  │ 17. External API Analyzer         │  │
+│  │     → VirusTotal, MalwareBazaar   │  │
 │  └───────────────────────────────────┘  │
 │  ┌───────────────────────────────────┐  │
-│  │ 14. Risk Score Calculator         │  │
+│  │ 18. Risk Score Calculator         │  │
 │  │     → 0-100 Score                 │  │
 │  └───────────────────────────────────┘  │
 └─────────────────────────────────────────┘
@@ -181,7 +197,7 @@ SecureLens는 **마이크로서비스 아키텍처**를 기반으로 하며, Doc
 
 **분석 프로세스**:
 1. 파일 검증
-2. 병렬/순차 분석 실행 (15개 분석 툴)
+2. 병렬/순차 분석 실행 (19개 분석 툴)
 3. 위험도 점수 계산
 4. 결과 저장
 
@@ -297,6 +313,10 @@ SecureLens는 **마이크로서비스 아키텍처**를 기반으로 하며, Doc
    ├─→ YARA (Local Rules)
    ├─→ Entropy Calculator
    ├─→ File Type Verifier
+   ├─→ File Hash Calculator
+   ├─→ File Size Analyzer
+   ├─→ Filename Pattern Analyzer
+   ├─→ Base64 Encoding Detector
    ├─→ Binary Analyzer
    ├─→ PE Analyzer (pefile)
    ├─→ PE Enhanced Analyzer (LIEF)

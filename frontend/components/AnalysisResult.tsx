@@ -50,6 +50,32 @@ interface AnalysisResultProps {
       ips?: string[]
       email_addresses?: string[]
     }
+    file_hashes?: {
+      md5?: string
+      sha1?: string
+      sha256?: string
+    }
+    file_size_analysis?: {
+      size_bytes?: number
+      size_mb?: number
+      suspicious?: boolean
+      anomalies?: string[]
+    }
+    filename_pattern_analysis?: {
+      suspicious?: boolean
+      anomalies?: string[]
+      patterns_detected?: string[]
+    }
+    base64_analysis?: {
+      has_base64?: boolean
+      suspicious?: boolean
+      anomalies?: string[]
+      base64_strings?: Array<{
+        string: string
+        decoded_size: number
+        offset: string
+      }>
+    }
     external_apis?: {
       file_hashes?: {
         md5?: string
@@ -545,45 +571,45 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 </tr>
 
                 {/* 엔트로피 분석 */}
-                {data.entropy !== undefined && (
-                  <tr className="hover:bg-slate-800/40">
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">엔트로피 분석</td>
-                    <td className={`px-4 py-2 border-b border-slate-800 ${data.entropy > 7.0 ? 'text-orange-300' : 'text-green-300'}`}>
-                      {data.entropy > 7.5
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">엔트로피 분석</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.entropy !== undefined ? (data.entropy > 7.0 ? 'text-orange-300' : 'text-green-300') : 'text-slate-400'}`}>
+                    {data.entropy !== undefined
+                      ? data.entropy > 7.5
                         ? `매우 높은 엔트로피 (${data.entropy.toFixed(2)}/8.0) - 패킹/암호화 가능성 높음`
                         : data.entropy > 7.0
                         ? `높은 엔트로피 (${data.entropy.toFixed(2)}/8.0) - 패킹 가능성`
-                        : `정상 범위 (${data.entropy.toFixed(2)}/8.0)`}
-                    </td>
-                  </tr>
-                )}
+                        : `정상 범위 (${data.entropy.toFixed(2)}/8.0)`
+                      : '분석 안 됨'}
+                  </td>
+                </tr>
 
                 {/* 파일 타입 검증 */}
-                {data.file_type_analysis && (
-                  <tr className="hover:bg-slate-800/40">
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">파일 타입 검증</td>
-                    <td className={`px-4 py-2 border-b border-slate-800 ${data.file_type_analysis.suspicious || !data.file_type_analysis.extension_match ? 'text-red-300' : 'text-green-300'}`}>
-                      {data.file_type_analysis.suspicious || !data.file_type_analysis.extension_match
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">파일 타입 검증</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.file_type_analysis ? (data.file_type_analysis.suspicious || !data.file_type_analysis.extension_match ? 'text-red-300' : 'text-green-300') : 'text-slate-400'}`}>
+                    {data.file_type_analysis
+                      ? data.file_type_analysis.suspicious || !data.file_type_analysis.extension_match
                         ? `확장자 위조 의심 (실제 타입: ${data.file_type_analysis.actual_type || '알 수 없음'})`
-                        : '확장자 일치 (정상)'}
-                    </td>
-                  </tr>
-                )}
+                        : '확장자 일치 (정상)'
+                      : '분석 안 됨'}
+                  </td>
+                </tr>
 
                 {/* PE 강화 분석 */}
-                {data.pe_enhanced && (
-                  <tr className="hover:bg-slate-800/40">
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">PE 강화 분석</td>
-                    <td className={`px-4 py-2 border-b border-slate-800 ${data.pe_enhanced.suspicious_characteristics && data.pe_enhanced.suspicious_characteristics.length > 0 ? 'text-orange-300' : 'text-green-300'}`}>
-                      {data.pe_enhanced.suspicious_characteristics && data.pe_enhanced.suspicious_characteristics.length > 0
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">PE 강화 분석</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.pe_enhanced ? (data.pe_enhanced.suspicious_characteristics && data.pe_enhanced.suspicious_characteristics.length > 0 ? 'text-orange-300' : 'text-green-300') : 'text-slate-400'}`}>
+                    {data.pe_enhanced
+                      ? data.pe_enhanced.suspicious_characteristics && data.pe_enhanced.suspicious_characteristics.length > 0
                         ? `의심스러운 특성 ${data.pe_enhanced.suspicious_characteristics.length}개 발견`
-                        : '이상 없음'}
-                    </td>
-                  </tr>
-                )}
+                        : '이상 없음'
+                      : 'PE 파일 아님 또는 분석 안 됨'}
+                  </td>
+                </tr>
 
                 {/* 쉘코드 탐지 */}
                 <tr className="hover:bg-slate-800/40">
@@ -608,45 +634,45 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                 </tr>
 
                 {/* Office 문서 분석 */}
-                {data.office_analysis && (
-                  <tr className="hover:bg-slate-800/40">
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">Office 문서 분석</td>
-                    <td className={`px-4 py-2 border-b border-slate-800 ${data.office_analysis.auto_exec_macros ? 'text-red-300' : data.office_analysis.has_macros ? 'text-orange-300' : 'text-green-300'}`}>
-                      {data.office_analysis.auto_exec_macros
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">Office 문서 분석</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.office_analysis ? (data.office_analysis.auto_exec_macros ? 'text-red-300' : data.office_analysis.has_macros ? 'text-orange-300' : 'text-green-300') : 'text-slate-400'}`}>
+                    {data.office_analysis
+                      ? data.office_analysis.auto_exec_macros
                         ? `자동 실행 매크로 발견 (${data.office_analysis.macro_count || 0}개 매크로)`
                         : data.office_analysis.has_macros
                         ? `VBA 매크로 발견 (${data.office_analysis.macro_count || 0}개)`
-                        : '매크로 없음'}
-                    </td>
-                  </tr>
-                )}
+                        : '매크로 없음'
+                      : 'Office 파일 아님 또는 분석 안 됨'}
+                  </td>
+                </tr>
 
                 {/* PDF 분석 */}
-                {data.pdf_analysis && (
-                  <tr className="hover:bg-slate-800/40">
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">PDF 분석</td>
-                    <td className={`px-4 py-2 border-b border-slate-800 ${data.pdf_analysis.has_javascript ? 'text-red-300' : 'text-green-300'}`}>
-                      {data.pdf_analysis.has_javascript
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">PDF 분석</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.pdf_analysis ? (data.pdf_analysis.has_javascript ? 'text-red-300' : 'text-green-300') : 'text-slate-400'}`}>
+                    {data.pdf_analysis
+                      ? data.pdf_analysis.has_javascript
                         ? `JavaScript 포함 (의심스러운 객체 ${data.pdf_analysis.suspicious_objects?.length || 0}개)`
-                        : '이상 없음'}
-                    </td>
-                  </tr>
-                )}
+                        : '이상 없음'
+                      : 'PDF 파일 아님 또는 분석 안 됨'}
+                  </td>
+                </tr>
 
                 {/* ZIP 분석 */}
-                {data.zip_analysis && (
-                  <tr className="hover:bg-slate-800/40">
-                    <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
-                    <td className="px-4 py-2 border-b border-slate-800 font-semibold">ZIP 분석</td>
-                    <td className={`px-4 py-2 border-b border-slate-800 ${data.zip_analysis.suspicious_files && data.zip_analysis.suspicious_files.length > 0 ? 'text-red-300' : 'text-green-300'}`}>
-                      {data.zip_analysis.suspicious_files && data.zip_analysis.suspicious_files.length > 0
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">ZIP 분석</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.zip_analysis ? (data.zip_analysis.suspicious_files && data.zip_analysis.suspicious_files.length > 0 ? 'text-red-300' : 'text-green-300') : 'text-slate-400'}`}>
+                    {data.zip_analysis
+                      ? data.zip_analysis.suspicious_files && data.zip_analysis.suspicious_files.length > 0
                         ? `의심스러운 파일 ${data.zip_analysis.suspicious_files.length}개 발견 (내부 파일 ${data.zip_analysis.file_count || 0}개)`
-                        : '이상 없음'}
-                    </td>
-                  </tr>
-                )}
+                        : '이상 없음'
+                      : 'ZIP 파일 아님 또는 분석 안 됨'}
+                  </td>
+                </tr>
 
                 {/* 스피어피싱 지표 */}
                 <tr className="hover:bg-slate-800/40">
@@ -656,6 +682,58 @@ export default function AnalysisResult({ data }: AnalysisResultProps) {
                     {data.spearphishing_indicators && (data.spearphishing_indicators.spoofed_sender || data.spearphishing_indicators.phishing_keywords?.length > 0 || data.spearphishing_indicators.suspicious_urls?.length > 0 || data.spearphishing_indicators.has_double_extension)
                       ? '이메일 기반 공격 징후 발견'
                       : '탐지 없음'}
+                  </td>
+                </tr>
+
+                {/* 파일 해시 */}
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">파일 해시</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.file_hashes?.sha256 ? 'text-green-300' : 'text-slate-400'}`}>
+                    {data.file_hashes?.sha256
+                      ? `SHA256: ${data.file_hashes.sha256.substring(0, 16)}... (계산 완료)`
+                      : '계산 안 됨'}
+                  </td>
+                </tr>
+
+                {/* 파일 크기 분석 */}
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">파일 크기 분석</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.file_size_analysis ? (data.file_size_analysis.suspicious ? 'text-orange-300' : 'text-green-300') : 'text-slate-400'}`}>
+                    {data.file_size_analysis
+                      ? data.file_size_analysis.suspicious
+                        ? `이상 크기 (${data.file_size_analysis.size_mb}MB) - ${data.file_size_analysis.anomalies?.length || 0}개 이상 징후`
+                        : `정상 크기 (${data.file_size_analysis.size_mb}MB)`
+                      : '분석 안 됨'}
+                  </td>
+                </tr>
+
+                {/* 파일명 패턴 분석 */}
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">파일명 패턴 분석</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.filename_pattern_analysis ? (data.filename_pattern_analysis.suspicious ? 'text-orange-300' : 'text-green-300') : 'text-slate-400'}`}>
+                    {data.filename_pattern_analysis
+                      ? data.filename_pattern_analysis.suspicious
+                        ? `의심스러운 패턴 발견 (${data.filename_pattern_analysis.anomalies?.length || 0}개 이상 징후)`
+                        : '이상 없음'
+                      : '분석 안 됨'}
+                  </td>
+                </tr>
+
+                {/* Base64 인코딩 탐지 */}
+                <tr className="hover:bg-slate-800/40">
+                  <td className="px-4 py-2 border-b border-slate-800 text-slate-300">내부 엔진</td>
+                  <td className="px-4 py-2 border-b border-slate-800 font-semibold">Base64 인코딩 탐지</td>
+                  <td className={`px-4 py-2 border-b border-slate-800 ${data.base64_analysis ? (data.base64_analysis.suspicious ? 'text-orange-300' : data.base64_analysis.has_base64 ? 'text-yellow-300' : 'text-green-300') : 'text-slate-400'}`}>
+                    {data.base64_analysis
+                      ? data.base64_analysis.suspicious
+                        ? `의심스러운 Base64 인코딩 발견 (${data.base64_analysis.anomalies?.length || 0}개 이상 징후)`
+                        : data.base64_analysis.has_base64
+                        ? `Base64 인코딩 문자열 발견 (${data.base64_analysis.base64_strings?.length || 0}개)`
+                        : 'Base64 인코딩 없음'
+                      : '분석 안 됨'}
                   </td>
                 </tr>
 
