@@ -769,7 +769,7 @@ async def ai_analysis(
             prompt,
             generation_config={
                 'temperature': 0.7,
-                'max_output_tokens': 8192,  # 내용이 잘리지 않도록 토큰 수 대폭 증가
+                'max_output_tokens': 16384,  # 내용이 잘리지 않도록 토큰 수 대폭 증가 (8192 -> 16384)
             }
         )
         
@@ -777,40 +777,35 @@ async def ai_analysis(
         if not response:
             raise ValueError("Gemini API returned empty response")
         
-        # Try to get text from response
-        # Handle both simple text responses and multi-part responses
+        # Extract text from response - always use parts to get complete response
+        # response.text can truncate long responses, so we manually collect all parts
         analysis_text = None
-        try:
-            # First, try the simple text accessor
-            analysis_text = response.text
-        except (AttributeError, ValueError) as e:
-            # If that fails, try to get text from parts
-            if hasattr(response, 'parts') and response.parts:
-                # Direct parts access
-                text_parts = []
-                for part in response.parts:
-                    if hasattr(part, 'text') and part.text:
-                        text_parts.append(part.text)
-                if text_parts:
-                    analysis_text = ''.join(text_parts)
-            elif hasattr(response, 'candidates') and response.candidates:
-                # Fallback: try to get text from candidates
-                if hasattr(response.candidates[0], 'content') and response.candidates[0].content:
-                    if hasattr(response.candidates[0].content, 'parts') and response.candidates[0].content.parts:
-                        text_parts = []
-                        for part in response.candidates[0].content.parts:
-                            if hasattr(part, 'text') and part.text:
-                                text_parts.append(part.text)
-                        if text_parts:
-                            analysis_text = ''.join(text_parts)
-                        else:
-                            raise ValueError("No text content in response parts")
-                    else:
-                        raise ValueError("No parts in response content")
-                else:
-                    raise ValueError("No content in response candidates")
-            else:
+        text_parts = []
+        
+        # Try to get text from candidates[0].content.parts (most reliable method)
+        if hasattr(response, 'candidates') and response.candidates and len(response.candidates) > 0:
+            candidate = response.candidates[0]
+            if hasattr(candidate, 'content') and candidate.content:
+                if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                    for part in candidate.content.parts:
+                        if hasattr(part, 'text') and part.text:
+                            text_parts.append(part.text)
+        
+        # Fallback: try response.parts directly
+        if not text_parts and hasattr(response, 'parts') and response.parts:
+            for part in response.parts:
+                if hasattr(part, 'text') and part.text:
+                    text_parts.append(part.text)
+        
+        # Last fallback: try response.text (may be truncated)
+        if not text_parts:
+            try:
+                analysis_text = response.text
+            except (AttributeError, ValueError) as e:
                 raise ValueError(f"Unable to extract text from response: {str(e)}")
+        else:
+            # Combine all parts to get complete response
+            analysis_text = ''.join(text_parts)
         
         if not analysis_text:
             raise ValueError("No text content found in response")
