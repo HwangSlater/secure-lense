@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, status, R
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, Dict, List
 import os
 import uuid
@@ -103,6 +103,8 @@ class CreditPurchaseHistoryItem(BaseModel):
 
 
 class AnalysisDetailResponse(BaseModel):
+    model_config = ConfigDict(serialize_none=True)  # Include None values in JSON
+    
     scan_id: str
     filename: Optional[str]  # Can be None for URL analysis (though we use URL as filename now)
     risk_score: int
@@ -387,6 +389,14 @@ async def analyze_url_endpoint(
         scan_id = str(uuid.uuid4())
         
         # Prepare analysis data for database
+        # Ensure virustotal is included in url_analysis_result for consistency
+        if url_analysis_result.get('virustotal'):
+            # Already included
+            pass
+        elif url_analysis_result.get('virustotal') is None:
+            # Explicitly set to None to ensure it's in the dict
+            url_analysis_result['virustotal'] = None
+        
         analysis_data = {
             "url": url,
             "risk_score": risk_score,
@@ -973,6 +983,12 @@ async def get_analysis_detail(
     if is_url_analysis:
         # URL analysis response
         url_analysis_result = analysis.get("url_analysis_result", {})
+        # Ensure virustotal is included in url_analysis_result if it exists in analysis_data
+        virustotal_data = analysis.get("virustotal_result") or url_analysis_result.get("virustotal")
+        # Always include virustotal in url_analysis_result for consistency
+        if "virustotal" not in url_analysis_result:
+            url_analysis_result["virustotal"] = virustotal_data
+        
         return AnalysisDetailResponse(
             scan_id=scan_id,
             filename=db_analysis.filename,
@@ -988,7 +1004,7 @@ async def get_analysis_detail(
             file_deleted_at="",  # Not applicable for URL analysis
             uploaded_at=db_analysis.uploaded_at.isoformat() + "Z",
             url=analysis.get("url") or db_analysis.filename,
-            virustotal=analysis.get("virustotal_result") or url_analysis_result.get("virustotal"),
+            virustotal=virustotal_data,  # This will be None if not available, but field will be present
             urlscan=analysis.get("urlscan_result") or url_analysis_result.get("urlscan"),
             ip_info=analysis.get("ip_info") or url_analysis_result.get("ip_info"),
             domain_info=analysis.get("domain_info") or url_analysis_result.get("domain_info", {}),
