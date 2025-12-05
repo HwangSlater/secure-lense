@@ -229,13 +229,18 @@ export default function DashboardPage() {
                 <h3 className="text-lg font-semibold mb-3 text-slate-200">주요 기능</h3>
                 <div className="bg-slate-800/50 rounded-lg p-4 space-y-3 text-sm">
                   <div>
-                    <span className="font-semibold text-cyan-300">파일 분석</span>
+                    <span className="font-semibold text-cyan-300">파일 분석 (다중 엔진)</span>
                     <ul className="mt-1 ml-4 list-disc text-slate-300 space-y-1">
-                      <li>ClamAV 바이러스 탐지</li>
-                      <li>YARA 규칙 기반 패턴 매칭</li>
-                      <li>PE 파일 헤더 이상 탐지</li>
-                      <li>쉘코드 및 의심스러운 문자열 탐지</li>
-                      <li>이메일 스피어피싱 지표 분석</li>
+                      <li>ClamAV: 바이러스 시그니처 탐지</li>
+                      <li>YARA: 패턴 매칭 규칙 탐지</li>
+                      <li>엔트로피 분석: 패킹/암호화 탐지</li>
+                      <li>파일 타입 검증: 확장자 위조 탐지</li>
+                      <li>PE 헤더 분석: 섹션 이상, API 임포트 분석</li>
+                      <li>쉘코드 및 의심 문자열 탐지</li>
+                      <li>Office 문서: VBA 매크로, 자동 실행 매크로</li>
+                      <li>PDF: JavaScript, 인터랙티브 요소</li>
+                      <li>ZIP: 내부 파일, 이중 확장자, 암호화</li>
+                      <li>이메일: 스피어피싱 지표 분석</li>
                     </ul>
                   </div>
                   <div>
@@ -257,9 +262,10 @@ export default function DashboardPage() {
                   <div>
                     <span className="font-semibold text-cyan-300">AI 심층 분석</span>
                     <ul className="mt-1 ml-4 list-disc text-slate-300 space-y-1">
-                      <li>Google Gemini 기반 상세 분석</li>
+                      <li>Google Gemini 2.5 Flash 기반 상세 분석</li>
+                      <li>모든 분석 결과를 종합한 종합 평가</li>
                       <li>일반인도 이해하기 쉬운 설명</li>
-                      <li>구체적인 대응 방법 제시</li>
+                      <li>구체적인 대응 방법 및 유사 공격 사례 제시</li>
                     </ul>
                   </div>
                 </div>
@@ -270,25 +276,36 @@ export default function DashboardPage() {
                 <h3 className="text-lg font-semibold mb-3 text-slate-200">위험도 점수 기준</h3>
                 <div className="bg-slate-800/50 rounded-lg p-4 space-y-2 text-sm">
                   <div className="flex items-center space-x-3">
-                    <span className="px-3 py-1 bg-green-700 text-white rounded text-xs font-semibold">0-30</span>
+                    <span className="px-3 py-1 bg-green-700 text-white rounded text-xs font-semibold">0-20</span>
                     <span className="text-slate-300">매우 낮음: 안전한 파일로 판단됩니다.</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <span className="px-3 py-1 bg-yellow-700 text-white rounded text-xs font-semibold">31-50</span>
+                    <span className="px-3 py-1 bg-yellow-700 text-white rounded text-xs font-semibold">21-40</span>
                     <span className="text-slate-300">낮음: 주의가 필요할 수 있습니다.</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <span className="px-3 py-1 bg-orange-700 text-white rounded text-xs font-semibold">51-70</span>
+                    <span className="px-3 py-1 bg-orange-700 text-white rounded text-xs font-semibold">41-60</span>
                     <span className="text-slate-300">보통: 의심스러운 파일입니다. 신중히 검토하세요.</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <span className="px-3 py-1 bg-red-700 text-white rounded text-xs font-semibold">71-85</span>
+                    <span className="px-3 py-1 bg-red-700 text-white rounded text-xs font-semibold">61-80</span>
                     <span className="text-slate-300">높음: 악성 파일일 가능성이 높습니다.</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <span className="px-3 py-1 bg-red-900 text-white rounded text-xs font-semibold">86-100</span>
+                    <span className="px-3 py-1 bg-red-900 text-white rounded text-xs font-semibold">81-100</span>
                     <span className="text-slate-300">매우 높음: 즉시 삭제하고 조치가 필요합니다.</span>
                   </div>
+                </div>
+                <div className="mt-3 bg-slate-800/30 rounded-lg p-3 text-xs text-slate-400">
+                  <p className="mb-2 font-semibold text-slate-300">주요 점수 항목:</p>
+                  <ul className="ml-4 list-disc space-y-1">
+                    <li>ClamAV 탐지: +40점</li>
+                    <li>YARA 매칭: 최대 +30점</li>
+                    <li>엔트로피 7.5 이상: +20점</li>
+                    <li>파일 타입 불일치: +15점</li>
+                    <li>Office 자동 실행 매크로: +20점</li>
+                    <li>VirusTotal 50% 이상 탐지: +25점</li>
+                  </ul>
                 </div>
               </div>
 

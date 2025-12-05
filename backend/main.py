@@ -111,11 +111,19 @@ class AnalysisDetailResponse(BaseModel):
     yara_matches: List[str]
     shellcode_patterns: List[str]
     suspicious_strings: List[str]
-    spearphishing_indicators: Optional[Dict]
+    spearphishing_indicators: Optional[Dict] = None
     external_apis: Optional[Dict] = None
     ai_analysis: Optional[str] = None
     file_deleted_at: str
     uploaded_at: str
+    # Enhanced analysis fields
+    entropy: Optional[float] = None
+    file_type_analysis: Optional[Dict] = None
+    office_analysis: Optional[Dict] = None
+    pdf_analysis: Optional[Dict] = None
+    zip_analysis: Optional[Dict] = None
+    pe_enhanced: Optional[Dict] = None
+    strings_enhanced: Optional[Dict] = None
     # URL analysis fields
     url: Optional[str] = None
     urlscan: Optional[Dict] = None
@@ -507,6 +515,141 @@ async def ai_analysis(
             content_preview = request.email_content[:500] + ("..." if len(request.email_content) > 500 else "")
             email_info += f"  - 내용: {content_preview}\n"
     
+    # Prepare enhanced analysis information
+    enhanced_analysis_info = ""
+    
+    # Entropy analysis
+    entropy = analysis_data.get('entropy')
+    if entropy:
+        enhanced_analysis_info += f"\n- 파일 엔트로피: {entropy:.2f}/8.0\n"
+        if entropy > 7.5:
+            enhanced_analysis_info += "  → 매우 높은 엔트로피: 파일이 암호화되었거나 패킹되었을 가능성이 매우 높습니다.\n"
+        elif entropy > 7.0:
+            enhanced_analysis_info += "  → 높은 엔트로피: 파일이 패킹되었거나 압축되었을 가능성이 있습니다.\n"
+        elif entropy > 6.5:
+            enhanced_analysis_info += "  → 중간 엔트로피: 일부 패킹 또는 압축 가능성.\n"
+        else:
+            enhanced_analysis_info += "  → 정상적인 엔트로피 범위.\n"
+    
+    # File type verification
+    file_type_analysis = analysis_data.get('file_type_analysis')
+    if file_type_analysis:
+        actual_type = file_type_analysis.get('actual_type')
+        extension_match = file_type_analysis.get('extension_match')
+        suspicious = file_type_analysis.get('suspicious')
+        if actual_type:
+            enhanced_analysis_info += f"\n- 실제 파일 타입: {actual_type}\n"
+            if not extension_match:
+                enhanced_analysis_info += "  → 경고: 파일 확장자와 실제 파일 타입이 일치하지 않습니다. 확장자 위조 가능성이 있습니다.\n"
+            if suspicious:
+                enhanced_analysis_info += "  → 경고: 의심스러운 파일 타입 불일치가 감지되었습니다.\n"
+    
+    # Office document analysis
+    office_analysis = analysis_data.get('office_analysis')
+    if office_analysis:
+        enhanced_analysis_info += "\n- Office 문서 분석:\n"
+        if office_analysis.get('has_macros'):
+            enhanced_analysis_info += f"  → VBA 매크로 발견: {office_analysis.get('macro_count', 0)}개 매크로\n"
+            if office_analysis.get('auto_exec_macros'):
+                enhanced_analysis_info += "  → 경고: 자동 실행 매크로가 발견되었습니다. 매우 위험합니다.\n"
+            suspicious_macros = office_analysis.get('suspicious_macros', [])
+            if suspicious_macros:
+                enhanced_analysis_info += f"  → 의심스러운 매크로: {len(suspicious_macros)}개\n"
+                for macro in suspicious_macros[:3]:
+                    enhanced_analysis_info += f"    - {macro}\n"
+            suspicious_keywords = office_analysis.get('suspicious_keywords', [])
+            if suspicious_keywords:
+                enhanced_analysis_info += f"  → 의심스러운 VBA 키워드: {', '.join(set(suspicious_keywords[:5]))}\n"
+        else:
+            enhanced_analysis_info += "  → 매크로 없음\n"
+    
+    # PDF analysis
+    pdf_analysis = analysis_data.get('pdf_analysis')
+    if pdf_analysis:
+        enhanced_analysis_info += "\n- PDF 분석:\n"
+        enhanced_analysis_info += f"  → 페이지 수: {pdf_analysis.get('page_count', 0)}\n"
+        if pdf_analysis.get('has_javascript'):
+            enhanced_analysis_info += "  → 경고: JavaScript가 포함되어 있습니다. 악성 PDF의 일반적인 특징입니다.\n"
+        if pdf_analysis.get('has_actions'):
+            enhanced_analysis_info += "  → 경고: 인터랙티브 요소(액션)가 포함되어 있습니다.\n"
+        if pdf_analysis.get('has_forms'):
+            enhanced_analysis_info += "  → 폼이 포함되어 있습니다.\n"
+        suspicious_objects = pdf_analysis.get('suspicious_objects', [])
+        if suspicious_objects:
+            enhanced_analysis_info += f"  → 의심스러운 객체: {len(suspicious_objects)}개\n"
+            for obj in suspicious_objects[:3]:
+                enhanced_analysis_info += f"    - {obj}\n"
+    
+    # ZIP analysis
+    zip_analysis = analysis_data.get('zip_analysis')
+    if zip_analysis:
+        enhanced_analysis_info += "\n- ZIP 파일 분석:\n"
+        enhanced_analysis_info += f"  → 내부 파일 수: {zip_analysis.get('file_count', 0)}\n"
+        if zip_analysis.get('encrypted'):
+            enhanced_analysis_info += "  → 경고: 암호화된 파일이 포함되어 있습니다.\n"
+        if zip_analysis.get('nested_archives'):
+            enhanced_analysis_info += "  → 경고: 중첩된 아카이브 파일이 발견되었습니다.\n"
+        double_ext_files = zip_analysis.get('double_extension_files', [])
+        if double_ext_files:
+            enhanced_analysis_info += f"  → 경고: 이중 확장자 파일 {len(double_ext_files)}개 발견\n"
+            for file in double_ext_files[:3]:
+                enhanced_analysis_info += f"    - {file}\n"
+        suspicious_files = zip_analysis.get('suspicious_files', [])
+        if suspicious_files:
+            enhanced_analysis_info += f"  → 의심스러운 파일: {len(suspicious_files)}개\n"
+            for file in suspicious_files[:5]:
+                enhanced_analysis_info += f"    - {file}\n"
+    
+    # Enhanced PE analysis
+    pe_enhanced = analysis_data.get('pe_enhanced')
+    if pe_enhanced:
+        enhanced_analysis_info += "\n- PE 파일 상세 분석:\n"
+        suspicious_chars = pe_enhanced.get('suspicious_characteristics', [])
+        if suspicious_chars:
+            enhanced_analysis_info += f"  → 의심스러운 특성: {len(suspicious_chars)}개 발견\n"
+            for char in suspicious_chars[:5]:
+                enhanced_analysis_info += f"    - {char}\n"
+        sections = pe_enhanced.get('sections', [])
+        if sections:
+            high_entropy_sections = [s for s in sections if s.get('entropy', 0) > 7.0]
+            if high_entropy_sections:
+                enhanced_analysis_info += f"  → 고엔트로피 섹션: {len(high_entropy_sections)}개 (패킹 가능성)\n"
+        imports = pe_enhanced.get('imports', [])
+        if imports:
+            enhanced_analysis_info += f"  → 임포트된 API: {len(imports)}개\n"
+            # Show suspicious imports
+            suspicious_imports = [imp for imp in imports[:10] if any(keyword in imp.lower() for keyword in ['virtualalloc', 'createprocess', 'urlmon', 'wininet', 'shell32'])]
+            if suspicious_imports:
+                enhanced_analysis_info += f"    의심스러운 API: {', '.join(suspicious_imports[:5])}\n"
+    
+    # Enhanced strings extraction
+    strings_enhanced = analysis_data.get('strings_enhanced')
+    if strings_enhanced:
+        enhanced_analysis_info += "\n- 추출된 문자열 분석:\n"
+        urls = strings_enhanced.get('urls', [])
+        if urls:
+            enhanced_analysis_info += f"  → 발견된 URL: {len(urls)}개\n"
+            for url in urls[:5]:
+                enhanced_analysis_info += f"    - {url}\n"
+        ips = strings_enhanced.get('ips', [])
+        if ips:
+            enhanced_analysis_info += f"  → 발견된 IP 주소: {len(set(ips))}개 (중복 제거)\n"
+            for ip in list(set(ips))[:5]:
+                enhanced_analysis_info += f"    - {ip}\n"
+        emails = strings_enhanced.get('email_addresses', [])
+        if emails:
+            enhanced_analysis_info += f"  → 발견된 이메일 주소: {len(set(emails))}개\n"
+            for email in list(set(emails))[:3]:
+                enhanced_analysis_info += f"    - {email}\n"
+    
+    # PE Header anomalies
+    binary_analysis = analysis_data.get('binary_analysis', {})
+    pe_anomalies = binary_analysis.get('pe_header_anomalies', [])
+    if pe_anomalies:
+        enhanced_analysis_info += "\n- PE 헤더 이상:\n"
+        for anomaly in pe_anomalies[:5]:
+            enhanced_analysis_info += f"  → {anomaly}\n"
+    
     # Prepare Gemini prompt (Korean, no emojis)
     prompt = f"""당신은 20년 경력의 사이버 보안 전문가입니다. 일반인도 이해할 수 있게 쉽게 설명해주세요.
 
@@ -519,7 +662,7 @@ async def ai_analysis(
 - YARA 탐지 규칙: {', '.join(analysis_data.get('yara_matches', [])) if analysis_data.get('yara_matches') else '없음'}
 - 쉘코드 패턴: {', '.join(analysis_data.get('binary_analysis', {}).get('shellcode_patterns', [])) if analysis_data.get('binary_analysis', {}).get('shellcode_patterns') else '없음'}
 - 의심스러운 문자열: {', '.join(analysis_data.get('binary_analysis', {}).get('suspicious_strings', [])[:10]) if analysis_data.get('binary_analysis', {}).get('suspicious_strings') else '없음'}
-- 스피어피싱 지표: {json.dumps(analysis_data.get('email_analysis', {}), ensure_ascii=False, indent=2) if analysis_data.get('email_analysis') else '없음'}{external_apis_info}{email_info}
+- 스피어피싱 지표: {json.dumps(analysis_data.get('email_analysis', {}), ensure_ascii=False, indent=2) if analysis_data.get('email_analysis') else '없음'}{external_apis_info}{email_info}{enhanced_analysis_info}
 
 **작업:**
 
@@ -541,12 +684,22 @@ async def ai_analysis(
 
 ## 발견된 위협 요소
 
-- ClamAV 탐지 결과에 대한 분석
-- YARA 규칙 매칭의 의미
-- 쉘코드 패턴이 발견되었다면 그 의미
-- 의심스러운 문자열의 위험성
-- 스피어피싱 지표가 있다면 상세 분석
-- 외부 위협 인텔리전스 결과(VirusTotal, MalwareBazaar 등)가 있다면 그 의미와 신뢰도
+다음 항목들을 각각 상세히 분석해주세요:
+
+1. **ClamAV 탐지 결과**: 바이러스 시그니처 탐지의 의미와 신뢰도
+2. **YARA 규칙 매칭**: 어떤 악성코드 패턴이 매칭되었는지, 그 패턴의 의미
+3. **쉘코드 패턴**: 발견된 쉘코드 패턴의 종류와 위험성
+4. **의심스러운 문자열**: 발견된 문자열들이 어떤 공격 기법을 나타내는지
+5. **엔트로피 분석**: 파일이 패킹되었는지, 암호화되었는지 여부와 그 의미
+6. **파일 타입 검증**: 확장자 위조 여부와 실제 파일 타입의 의미
+7. **Office 문서 분석**: VBA 매크로의 위험성, 자동 실행 매크로의 의미, 발견된 의심스러운 키워드 분석
+8. **PDF 분석**: JavaScript 포함 여부, 인터랙티브 요소의 위험성
+9. **ZIP 분석**: 내부 파일들의 위험성, 이중 확장자 파일의 의미, 암호화/중첩 아카이브의 의도
+10. **PE 강화 분석**: 고엔트로피 섹션의 의미, 의심스러운 API 임포트 분석, 섹션 특성 이상 분석
+11. **추출된 문자열**: 발견된 URL, IP 주소, 이메일 주소의 위험성 평가
+12. **PE 헤더 이상**: 발견된 이상 사항들의 의미와 위험성
+13. **스피어피싱 지표**: 이메일 분석 결과의 의미와 공격 유형 판단
+14. **외부 위협 인텔리전스**: VirusTotal, MalwareBazaar 등의 결과 해석과 신뢰도 평가
 
 ## 대응 방법
 
@@ -579,7 +732,7 @@ async def ai_analysis(
             prompt,
             generation_config={
                 'temperature': 0.7,
-                'max_output_tokens': 2000,
+                'max_output_tokens': 4000,  # 더 상세한 분석을 위해 토큰 수 증가
             }
         )
         
@@ -856,6 +1009,14 @@ async def get_analysis_detail(
             ai_analysis=db_analysis.ai_analysis,
             file_deleted_at=file_deleted_at,
             uploaded_at=uploaded_at.isoformat() + "Z",
+            # Enhanced analysis fields
+            entropy=analysis.get("entropy"),
+            file_type_analysis=analysis.get("file_type_analysis"),
+            office_analysis=analysis.get("office_analysis"),
+            pdf_analysis=analysis.get("pdf_analysis"),
+            zip_analysis=analysis.get("zip_analysis"),
+            pe_enhanced=analysis.get("pe_enhanced"),
+            strings_enhanced=analysis.get("strings_enhanced"),
         )
 
 

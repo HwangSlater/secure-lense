@@ -14,6 +14,42 @@ import threading
 import time
 import json
 from itertools import islice
+import zipfile
+import math
+import collections
+
+# Optional imports for enhanced analysis
+try:
+    import magic
+    MAGIC_AVAILABLE = True
+except ImportError:
+    try:
+        import magic as magic_module
+        MAGIC_AVAILABLE = True
+    except ImportError:
+        MAGIC_AVAILABLE = False
+        print("Warning: python-magic not available, file type verification disabled")
+
+try:
+    from oletools.olevba import VBA_Parser
+    OLETOOLS_AVAILABLE = True
+except ImportError:
+    OLETOOLS_AVAILABLE = False
+    print("Warning: oletools not available, Office document analysis disabled")
+
+try:
+    import PyPDF2
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
+    print("Warning: PyPDF2 not available, PDF analysis disabled")
+
+try:
+    import lief
+    LIEF_AVAILABLE = True
+except ImportError:
+    LIEF_AVAILABLE = False
+    print("Warning: LIEF not available, enhanced PE analysis disabled")
 
 # External API integration
 try:
@@ -326,6 +362,352 @@ def analyze_binary(file_path: str) -> Dict:
     return result
 
 
+def calculate_entropy(file_path: str) -> float:
+    """Calculate file entropy to detect packing/encryption (0-8, higher = more random)"""
+    try:
+        with open(file_path, 'rb') as f:
+            data = f.read()
+        
+        if len(data) == 0:
+            return 0.0
+        
+        # Calculate byte frequency
+        byte_counts = collections.Counter(data)
+        file_size = len(data)
+        
+        # Calculate entropy
+        entropy = 0.0
+        for count in byte_counts.values():
+            probability = count / file_size
+            if probability > 0:
+                entropy -= probability * math.log2(probability)
+        
+        return entropy
+    except Exception as e:
+        print(f"Entropy calculation error: {e}")
+        return 0.0
+
+
+def verify_file_type(file_path: str, expected_extension: str) -> Dict:
+    """Verify actual file type using magic numbers"""
+    result = {
+        "actual_type": None,
+        "extension_match": True,
+        "suspicious": False
+    }
+    
+    if not MAGIC_AVAILABLE:
+        return result
+    
+    try:
+        mime = magic.Magic(mime=True)
+        actual_mime = mime.from_file(file_path)
+        result["actual_type"] = actual_mime
+        
+        # Check if extension matches actual file type
+        extension_map = {
+            '.exe': ['application/x-dosexec', 'application/x-msdownload', 'application/x-executable'],
+            '.dll': ['application/x-dosexec', 'application/x-msdownload'],
+            '.pdf': ['application/pdf'],
+            '.docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip'],
+            '.zip': ['application/zip', 'application/x-zip-compressed'],
+            '.eml': ['message/rfc822', 'text/plain']
+        }
+        
+        expected_mimes = extension_map.get(expected_extension.lower(), [])
+        if expected_mimes and actual_mime not in expected_mimes:
+            result["extension_match"] = False
+            result["suspicious"] = True
+        
+        # Check for suspicious mismatches
+        if expected_extension.lower() in ['.pdf', '.docx', '.zip']:
+            if 'executable' in actual_mime.lower() or 'dosexec' in actual_mime.lower():
+                result["suspicious"] = True
+        
+    except Exception as e:
+        print(f"File type verification error: {e}")
+    
+    return result
+
+
+def analyze_office_document(file_path: str) -> Dict:
+    """Analyze Office documents for VBA macros and suspicious content"""
+    result = {
+        "has_macros": False,
+        "macro_count": 0,
+        "suspicious_macros": [],
+        "auto_exec_macros": False,
+        "suspicious_keywords": []
+    }
+    
+    if not OLETOOLS_AVAILABLE:
+        return result
+    
+    try:
+        vba_parser = VBA_Parser(file_path)
+        
+        if vba_parser.detect_vba_macros():
+            result["has_macros"] = True
+            
+            # Analyze macros
+            for (filename, stream_path, vba_filename, vba_code) in vba_parser.extract_macros():
+                result["macro_count"] += 1
+                
+                # Check for auto-exec macros
+                auto_exec_patterns = [
+                    r'auto_open', r'auto_close', r'workbook_open', r'document_open',
+                    r'autoexec', r'autonew', r'autoclose'
+                ]
+                for pattern in auto_exec_patterns:
+                    if re.search(pattern, vba_code, re.IGNORECASE):
+                        result["auto_exec_macros"] = True
+                        result["suspicious_macros"].append(f"{vba_filename}: Auto-exec macro detected")
+                
+                # Check for suspicious keywords
+                suspicious_vba_keywords = [
+                    'shell', 'createobject', 'wscript.shell', 'exec', 'run',
+                    'downloadfile', 'urlmon', 'xmlhttp', 'adodb.stream',
+                    'regwrite', 'regdelete', 'getobject', 'sendkeys'
+                ]
+                found_keywords = []
+                for keyword in suspicious_vba_keywords:
+                    if re.search(rf'\b{keyword}\b', vba_code, re.IGNORECASE):
+                        found_keywords.append(keyword)
+                
+                if found_keywords:
+                    result["suspicious_keywords"].extend(found_keywords)
+                    result["suspicious_macros"].append(f"{vba_filename}: Suspicious keywords: {', '.join(found_keywords[:3])}")
+            
+            vba_parser.close()
+    
+    except Exception as e:
+        print(f"Office document analysis error: {e}")
+    
+    return result
+
+
+def analyze_pdf(file_path: str) -> Dict:
+    """Analyze PDF files for suspicious content"""
+    result = {
+        "has_javascript": False,
+        "has_forms": False,
+        "has_actions": False,
+        "page_count": 0,
+        "suspicious_objects": []
+    }
+    
+    if not PDF_AVAILABLE:
+        return result
+    
+    try:
+        with open(file_path, 'rb') as f:
+            pdf_reader = PyPDF2.PdfReader(f)
+            result["page_count"] = len(pdf_reader.pages)
+            
+            # Check for JavaScript
+            if '/JS' in pdf_reader.trailer or '/JavaScript' in pdf_reader.trailer:
+                result["has_javascript"] = True
+                result["suspicious_objects"].append("JavaScript detected in PDF")
+            
+            # Check pages for actions
+            for i, page in enumerate(pdf_reader.pages[:10]):  # Limit to first 10 pages
+                if '/Annots' in page:
+                    result["has_actions"] = True
+                    result["suspicious_objects"].append(f"Interactive elements in page {i+1}")
+                
+                if '/AcroForm' in page:
+                    result["has_forms"] = True
+            
+            # Check for embedded files
+            if '/EmbeddedFiles' in pdf_reader.trailer:
+                result["suspicious_objects"].append("Embedded files detected")
+    
+    except Exception as e:
+        print(f"PDF analysis error: {e}")
+    
+    return result
+
+
+def analyze_zip(file_path: str) -> Dict:
+    """Analyze ZIP files for suspicious content"""
+    result = {
+        "file_count": 0,
+        "suspicious_files": [],
+        "encrypted": False,
+        "nested_archives": False,
+        "double_extension_files": []
+    }
+    
+    try:
+        with zipfile.ZipFile(file_path, 'r') as zip_ref:
+            file_list = zip_ref.namelist()
+            result["file_count"] = len(file_list)
+            
+            for filename in file_list:
+                # Check for double extensions
+                if re.search(r'\.(pdf|doc|docx|jpg|png|txt)\.(exe|bat|cmd|scr|vbs|js)', filename, re.IGNORECASE):
+                    result["double_extension_files"].append(filename)
+                    result["suspicious_files"].append(f"Double extension: {filename}")
+                
+                # Check for executable files
+                if filename.lower().endswith(('.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.ps1')):
+                    result["suspicious_files"].append(f"Executable file: {filename}")
+                
+                # Check for nested archives
+                if filename.lower().endswith(('.zip', '.rar', '.7z', '.tar', '.gz')):
+                    result["nested_archives"] = True
+                    result["suspicious_files"].append(f"Nested archive: {filename}")
+                
+                # Check if encrypted
+                try:
+                    zip_info = zip_ref.getinfo(filename)
+                    if zip_info.flag_bits & 0x1:  # Encrypted flag
+                        result["encrypted"] = True
+                except:
+                    pass
+    
+    except zipfile.BadZipFile:
+        result["suspicious_files"].append("Invalid or corrupted ZIP file")
+    except Exception as e:
+        print(f"ZIP analysis error: {e}")
+    
+    return result
+
+
+def extract_strings_enhanced(file_path: str) -> Dict:
+    """Enhanced string extraction with multiple encodings"""
+    result = {
+        "ascii_strings": [],
+        "unicode_strings": [],
+        "urls": [],
+        "ips": [],
+        "email_addresses": []
+    }
+    
+    try:
+        with open(file_path, 'rb') as f:
+            content = f.read()
+        
+        # Extract ASCII strings (printable, length >= 4)
+        ascii_pattern = rb'[\x20-\x7E]{4,}'
+        ascii_matches = re.finditer(ascii_pattern, content)
+        for match in islice(ascii_matches, 100):  # Limit to 100
+            try:
+                string = match.group(0).decode('ascii', errors='ignore')
+                if len(string) >= 4:
+                    result["ascii_strings"].append(string)
+            except:
+                pass
+        
+        # Extract Unicode strings (UTF-16 LE)
+        unicode_pattern = rb'(?:[\x20-\x7E][\x00]){4,}'
+        unicode_matches = re.finditer(unicode_pattern, content)
+        for match in islice(unicode_matches, 50):  # Limit to 50
+            try:
+                string = match.group(0).decode('utf-16-le', errors='ignore')
+                if len(string) >= 4:
+                    result["unicode_strings"].append(string)
+            except:
+                pass
+        
+        # Extract URLs
+        url_pattern = rb'https?://[^\x00-\x1F\x7F-\xFF\s<>"{}|\\^`\[\]]+'
+        url_matches = re.finditer(url_pattern, content)
+        for match in islice(url_matches, 20):
+            try:
+                url = match.group(0).decode('utf-8', errors='ignore')
+                result["urls"].append(url)
+            except:
+                pass
+        
+        # Extract IP addresses
+        ip_pattern = rb'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+        ip_matches = re.finditer(ip_pattern, content)
+        for match in islice(ip_matches, 20):
+            try:
+                ip = match.group(0).decode('ascii')
+                result["ips"].append(ip)
+            except:
+                pass
+        
+        # Extract email addresses
+        email_pattern = rb'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        email_matches = re.finditer(email_pattern, content)
+        for match in islice(email_matches, 20):
+            try:
+                email_addr = match.group(0).decode('ascii')
+                result["email_addresses"].append(email_addr)
+            except:
+                pass
+    
+    except Exception as e:
+        print(f"Enhanced string extraction error: {e}")
+    
+    return result
+
+
+def analyze_pe_enhanced(file_path: str) -> Dict:
+    """Enhanced PE analysis using LIEF"""
+    result = {
+        "imports": [],
+        "exports": [],
+        "sections": [],
+        "resources": [],
+        "suspicious_characteristics": []
+    }
+    
+    if not LIEF_AVAILABLE:
+        return result
+    
+    try:
+        binary = lief.parse(file_path)
+        if binary is None:
+            return result
+        
+        # Extract imports
+        for imported_lib in binary.imports:
+            lib_name = imported_lib.name
+            for func in imported_lib.entries:
+                if func.name:
+                    result["imports"].append(f"{lib_name}:{func.name}")
+        
+        # Extract exports
+        for exported_func in binary.exports:
+            if exported_func.name:
+                result["exports"].append(exported_func.name)
+        
+        # Analyze sections
+        for section in binary.sections:
+            section_info = {
+                "name": section.name,
+                "size": section.size,
+                "entropy": section.entropy,
+                "characteristics": []
+            }
+            
+            # Check for high entropy (packing indicator)
+            if section.entropy > 7.0:
+                section_info["characteristics"].append("High entropy (possible packing)")
+                result["suspicious_characteristics"].append(f"Section '{section.name}' has high entropy ({section.entropy:.2f})")
+            
+            # Check for executable + writable sections
+            if section.has_characteristic(lief.PE.SECTION_CHARACTERISTICS.MEM_EXECUTE) and \
+               section.has_characteristic(lief.PE.SECTION_CHARACTERISTICS.MEM_WRITE):
+                section_info["characteristics"].append("Executable + Writable (suspicious)")
+                result["suspicious_characteristics"].append(f"Section '{section.name}' is both executable and writable")
+            
+            result["sections"].append(section_info)
+        
+        # Check resources
+        if binary.has_resources:
+            result["resources"].append("PE resources detected")
+    
+    except Exception as e:
+        print(f"Enhanced PE analysis error: {e}")
+    
+    return result
+
+
 def analyze_email(file_path: str) -> Dict:
     """Analyze email file for spear-phishing indicators"""
     result = {
@@ -420,7 +802,13 @@ def calculate_risk_score(
     binary_analysis: Dict,
     email_analysis: Dict,
     filename: str,
-    external_apis: Optional[Dict] = None
+    external_apis: Optional[Dict] = None,
+    entropy: float = 0.0,
+    file_type_analysis: Optional[Dict] = None,
+    office_analysis: Optional[Dict] = None,
+    pdf_analysis: Optional[Dict] = None,
+    zip_analysis: Optional[Dict] = None,
+    pe_enhanced: Optional[Dict] = None
 ) -> Tuple[int, str]:
     """Calculate risk score (0-100) and risk level"""
     score = 0
@@ -447,6 +835,52 @@ def calculate_risk_score(
     # PE Header anomalies: +15 (if any suspicious sections found)
     if binary_analysis.get("pe_header_anomalies"):
         score += 15
+    
+    # Enhanced PE analysis (LIEF)
+    if pe_enhanced:
+        if pe_enhanced.get("suspicious_characteristics"):
+            score += min(20, len(pe_enhanced["suspicious_characteristics"]) * 5)
+    
+    # Entropy analysis (high entropy = possible packing/encryption)
+    if entropy > 7.5:
+        score += 20
+    elif entropy > 7.0:
+        score += 15
+    elif entropy > 6.5:
+        score += 10
+    
+    # File type mismatch (extension doesn't match actual file type)
+    if file_type_analysis and file_type_analysis.get("suspicious"):
+        score += 15
+    if file_type_analysis and not file_type_analysis.get("extension_match"):
+        score += 10
+    
+    # Office document analysis
+    if office_analysis:
+        if office_analysis.get("has_macros"):
+            score += 15
+        if office_analysis.get("auto_exec_macros"):
+            score += 20
+        if office_analysis.get("suspicious_macros"):
+            score += min(15, len(office_analysis["suspicious_macros"]) * 5)
+    
+    # PDF analysis
+    if pdf_analysis:
+        if pdf_analysis.get("has_javascript"):
+            score += 15
+        if pdf_analysis.get("suspicious_objects"):
+            score += min(10, len(pdf_analysis["suspicious_objects"]) * 3)
+    
+    # ZIP analysis
+    if zip_analysis:
+        if zip_analysis.get("suspicious_files"):
+            score += min(15, len(zip_analysis["suspicious_files"]) * 3)
+        if zip_analysis.get("encrypted"):
+            score += 10
+        if zip_analysis.get("nested_archives"):
+            score += 10
+        if zip_analysis.get("double_extension_files"):
+            score += min(15, len(zip_analysis["double_extension_files"]) * 5)
     
     # Email-specific: spear-phishing indicators
     if email_analysis.get("spoofed_sender"):
@@ -504,7 +938,7 @@ def calculate_risk_score(
 
 
 def analyze_file(file_path: str, original_filename: str) -> Dict:
-    """Main analysis pipeline"""
+    """Main analysis pipeline with enhanced analysis tools"""
     ensure_upload_dir()
     
     # Validate file
@@ -520,9 +954,18 @@ def analyze_file(file_path: str, original_filename: str) -> Dict:
         "yara_matches": [],
         "binary_analysis": {},
         "email_analysis": {},
+        "entropy": 0.0,
+        "file_type_analysis": {},
+        "office_analysis": {},
+        "pdf_analysis": {},
+        "zip_analysis": {},
+        "pe_enhanced": {},
+        "strings_enhanced": {},
         "risk_score": 0,
         "risk_level": "매우 낮음"
     }
+    
+    ext = Path(original_filename).suffix.lower()
     
     # ClamAV scan
     virus_name, detected = scan_clamav(file_path)
@@ -533,15 +976,55 @@ def analyze_file(file_path: str, original_filename: str) -> Dict:
     yara_matches = scan_yara(file_path)
     result["yara_matches"] = yara_matches
     
+    # Entropy calculation (for packing detection)
+    entropy = calculate_entropy(file_path)
+    result["entropy"] = round(entropy, 2)
+    
+    # File type verification
+    file_type_analysis = verify_file_type(file_path, ext)
+    result["file_type_analysis"] = file_type_analysis
+    
     # Binary analysis
     binary_analysis = analyze_binary(file_path)
     result["binary_analysis"] = binary_analysis
     
+    # Enhanced PE analysis (for PE files)
+    if ext in ['.exe', '.dll']:
+        pe_enhanced = analyze_pe_enhanced(file_path)
+        result["pe_enhanced"] = pe_enhanced
+    else:
+        pe_enhanced = {}
+    
+    # Office document analysis
+    if ext in ['.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt']:
+        office_analysis = analyze_office_document(file_path)
+        result["office_analysis"] = office_analysis
+    else:
+        office_analysis = {}
+    
+    # PDF analysis
+    if ext == '.pdf':
+        pdf_analysis = analyze_pdf(file_path)
+        result["pdf_analysis"] = pdf_analysis
+    else:
+        pdf_analysis = {}
+    
+    # ZIP analysis
+    if ext == '.zip':
+        zip_analysis = analyze_zip(file_path)
+        result["zip_analysis"] = zip_analysis
+    else:
+        zip_analysis = {}
+    
     # Email analysis (for .eml files)
     email_analysis = {}
-    if original_filename.lower().endswith('.eml'):
+    if ext == '.eml':
         email_analysis = analyze_email(file_path)
         result["email_analysis"] = email_analysis
+    
+    # Enhanced string extraction
+    strings_enhanced = extract_strings_enhanced(file_path)
+    result["strings_enhanced"] = strings_enhanced
     
     # External API analysis (async, non-blocking)
     external_apis_result = {}
@@ -556,14 +1039,20 @@ def analyze_file(file_path: str, original_filename: str) -> Dict:
             print(f"External API analysis error: {e}")
             result["external_apis"] = {}
     
-    # Calculate risk score
+    # Calculate risk score with all analysis results
     risk_score, risk_level = calculate_risk_score(
         detected,
         yara_matches,
         binary_analysis,
         email_analysis,
         original_filename,
-        external_apis_result if external_apis_result else None
+        external_apis_result if external_apis_result else None,
+        entropy,
+        file_type_analysis,
+        office_analysis,
+        pdf_analysis,
+        zip_analysis,
+        pe_enhanced
     )
     result["risk_score"] = risk_score
     result["risk_level"] = risk_level
