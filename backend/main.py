@@ -858,7 +858,7 @@ async def ai_analysis(
 
 ## 위험도 평가
 
-{analysis_data['risk_level']} - 위험도 점수 {analysis_data['risk_score']}/100에 대한 상세 평가
+{analysis_data['risk_level']} - 위험도 점수 {analysis_data['risk_score']} / 100에 대한 상세 평가
 
 ## 3줄 요약
 
@@ -1049,6 +1049,7 @@ async def ai_analysis(
         credits_used=credits_used,
         remaining_credits=current_user.credits
     )
+    """
 
 
 # Credit charging endpoint
