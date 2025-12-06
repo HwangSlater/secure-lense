@@ -321,13 +321,7 @@ async def analyze_url_endpoint(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Analyze a URL using external APIs"""
-    if not EXTERNAL_APIS_AVAILABLE:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="URL 분석 기능이 현재 사용할 수 없습니다."
-        )
-    
+    """Analyze a URL using dummy data (for testing)"""
     # Rate limiting
     client_ip = http_request.client.host if http_request else "unknown"
     if not check_rate_limit(client_ip):
@@ -342,110 +336,118 @@ async def analyze_url_endpoint(
     if not url.startswith(('http://', 'https://')):
         url = 'https://' + url
     
-    try:
-        # Analyze URL using external APIs
-        url_analysis_result = analyze_url(url)
-        
-        # Calculate risk score based on VirusTotal (primary) and URLScan.io (secondary) results
-        risk_score = 0
-        
-        # VirusTotal URL scan results (primary - more reliable for malicious detection, minimum 5 detections required)
-        if url_analysis_result.get('virustotal'):
-            vt_result = url_analysis_result['virustotal']
-            if isinstance(vt_result, dict) and vt_result.get('detected', 0) >= 5:
-                detected_ratio = vt_result['detected'] / max(vt_result.get('total', 1), 1)
-                if detected_ratio >= 0.5:  # 50%+ detection
-                    risk_score = min(100, 85 + int(detected_ratio * 15))
-                elif detected_ratio >= 0.2:  # 20%+ detection
-                    risk_score = min(85, 70 + int(detected_ratio * 15))
-                else:  # 5+ detections but < 20%
-                    risk_score = min(70, 55 + int(detected_ratio * 15))
-        
-        # URLScan.io results (secondary - for behavior analysis)
-        if url_analysis_result.get('urlscan') and risk_score < 70:
-            urlscan = url_analysis_result['urlscan']
-            if isinstance(urlscan, dict):
-                # Check if URLScan.io detected it as malicious
-                if urlscan.get('malicious'):
-                    threat_score = urlscan.get('threat_score', 0) or 0
-                    risk_score = max(risk_score, min(100, 70 + threat_score))
-                else:
-                    # Check threat score (0-10 scale)
-                    threat_score = urlscan.get('threat_score', 0) or 0
-                    if threat_score > 0:
-                        risk_score = max(risk_score, min(70, threat_score * 7))  # Convert 0-10 to 0-70
-        
-        # Determine risk level
-        if risk_score >= 86:
-            risk_level = "매우 높음"
-        elif risk_score >= 71:
-            risk_level = "높음"
-        elif risk_score >= 51:
-            risk_level = "보통"
-        elif risk_score >= 31:
-            risk_level = "낮음"
-        else:
-            risk_level = "매우 낮음"
-        
-        # Generate scan_id
-        scan_id = str(uuid.uuid4())
-        
-        # Prepare analysis data for database
-        # Ensure virustotal is included in url_analysis_result for consistency
-        if url_analysis_result.get('virustotal'):
-            # Already included
-            pass
-        elif url_analysis_result.get('virustotal') is None:
-            # Explicitly set to None to ensure it's in the dict
-            url_analysis_result['virustotal'] = None
-        
-        analysis_data = {
-            "url": url,
-            "risk_score": risk_score,
-            "risk_level": risk_level,
-            "url_analysis_result": url_analysis_result,
-            "virustotal_result": url_analysis_result.get('virustotal'),
-            "urlscan_result": url_analysis_result.get('urlscan'),
-            "ip_info": url_analysis_result.get('ip_info'),
-            "domain_info": url_analysis_result.get('domain_info', {})
+    # Use dummy data for URL analysis
+    scan_id = str(uuid.uuid4())
+    
+    # Dummy data from dummy_data.json
+    dummy_virustotal = {
+        "url": url,
+        "scan_id": f"dummy-vt-scan-id-{scan_id[:8]}",
+        "scan_date": datetime.utcnow().isoformat() + "Z",
+        "permalink": f"https://www.virustotal.com/gui/url/dummy-permalink-{scan_id[:8]}",
+        "detected": 12,
+        "total": 89,
+        "scans": {
+            "Kaspersky": {
+                "detected": True,
+                "result": "phishing"
+            },
+            "ESET-NOD32": {
+                "detected": True,
+                "result": "phishing"
+            },
+            "BitDefender": {
+                "detected": True,
+                "result": "malicious"
+            }
         }
-        
-        # Store analysis result in database
-        # For URL analysis, use the URL as filename for consistency
-        db_analysis = Analysis(
-            scan_id=scan_id,
-            user_id=current_user.id,
-            filename=url,  # Use URL as filename for URL analysis
-            analysis_data=analysis_data,
-            risk_score=risk_score,
-            risk_level=risk_level,
-            uploaded_at=datetime.utcnow()
-        )
-        db.add(db_analysis)
-        db.commit()
-        db.refresh(db_analysis)
-        
-        # Prepare response (urlscan field name matches URLAnalysisResponse model)
-        return URLAnalysisResponse(
-            scan_id=scan_id,
-            url=url,
-            risk_score=risk_score,
-            risk_level=risk_level,
-            virustotal=url_analysis_result.get('virustotal'),
-            urlscan=url_analysis_result.get('urlscan'),
-            ip_info=url_analysis_result.get('ip_info'),
-            domain_info=url_analysis_result.get('domain_info', {}),
-            analyzed_at=datetime.utcnow().isoformat() + "Z"
-        )
-        
-    except Exception as e:
-        import traceback
-        print(f"URL analysis error: {str(e)}")
-        print(traceback.format_exc())
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"URL 분석 중 오류가 발생했습니다: {str(e)}"
-        )
+    }
+    
+    dummy_urlscan = {
+        "url": url,
+        "domain": url.split("//")[-1].split("/")[0] if "//" in url else url.split("/")[0],
+        "ip": "192.0.2.1",
+        "country": "Unknown",
+        "malicious": True,
+        "threat_score": 85,
+        "tags": ["phishing", "malicious", "suspicious"],
+        "screenshot": f"https://urlscan.io/screenshots/dummy-screenshot-{scan_id[:8]}.png",
+        "uuid": f"dummy-urlscan-uuid-{scan_id[:8]}",
+        "network_requests": [
+            {
+                "domain": url.split("//")[-1].split("/")[0] if "//" in url else url.split("/")[0],
+                "url": url,
+                "method": "GET"
+            },
+            {
+                "domain": "malicious-tracker.com",
+                "url": "http://malicious-tracker.com/track",
+                "method": "POST"
+            }
+        ]
+    }
+    
+    dummy_ip_info = {
+        "ip": "192.0.2.1",
+        "country": "Unknown",
+        "city": "Unknown",
+        "isp": "Unknown ISP",
+        "org": "Unknown Organization"
+    }
+    
+    domain = url.split("//")[-1].split("/")[0] if "//" in url else url.split("/")[0]
+    dummy_domain_info = {
+        "domain": domain,
+        "resolved_ip": "192.0.2.1"
+    }
+    
+    risk_score = 85
+    risk_level = "매우 높음"
+    
+    url_analysis_result = {
+        "virustotal": dummy_virustotal,
+        "urlscan": dummy_urlscan,
+        "ip_info": dummy_ip_info,
+        "domain_info": dummy_domain_info
+    }
+    
+    analysis_data = {
+        "url": url,
+        "risk_score": risk_score,
+        "risk_level": risk_level,
+        "url_analysis_result": url_analysis_result,
+        "virustotal_result": dummy_virustotal,
+        "urlscan_result": dummy_urlscan,
+        "ip_info": dummy_ip_info,
+        "domain_info": dummy_domain_info
+    }
+    
+    # Store analysis result in database
+    db_analysis = Analysis(
+        scan_id=scan_id,
+        user_id=current_user.id,
+        filename=url,
+        analysis_data=analysis_data,
+        risk_score=risk_score,
+        risk_level=risk_level,
+        uploaded_at=datetime.utcnow()
+    )
+    db.add(db_analysis)
+    db.commit()
+    db.refresh(db_analysis)
+    
+    # Return dummy data response
+    return URLAnalysisResponse(
+        scan_id=scan_id,
+        url=url,
+        risk_score=risk_score,
+        risk_level=risk_level,
+        virustotal=dummy_virustotal,
+        urlscan=dummy_urlscan,
+        ip_info=dummy_ip_info,
+        domain_info=dummy_domain_info,
+        analyzed_at=datetime.utcnow().isoformat() + "Z"
+    )
 
 
 # AI analysis endpoint
@@ -480,8 +482,154 @@ async def ai_analysis(
             remaining_credits=current_user.credits
         )
     
+    # Use dummy data for all AI analysis
     analysis_data = db_analysis.analysis_data
     filename = db_analysis.filename
+    risk_score = analysis_data.get('risk_score', 0)
+    risk_level = analysis_data.get('risk_level', '매우 낮음')
+    
+    # Check if email subject or content is provided
+    has_email_info = request.email_subject or request.email_content
+    
+    # Generate dummy AI analysis based on whether email info exists
+    if has_email_info:
+        # Email info provided - use phishing analysis with 95% spearphishing
+        dummy_ai_analysis = f"""## 위험도 평가
+
+**{risk_level}** - 위험도 점수 {risk_score}/100에 대한 상세 평가입니다. 이 파일은 여러 분석 도구를 통해 검사되었으며, 발견된 위협 요소들을 종합적으로 평가한 결과입니다.
+
+## 3줄 요약
+
+1. **파일의 정체**: 이 파일은 분석 결과를 바탕으로 평가된 파일입니다. 위험도 점수 {risk_score}/100으로 {risk_level} 위험 수준으로 분류되었습니다.
+
+2. **발생할 수 있는 피해**: 위험도 점수에 따라 다양한 위협이 존재할 수 있습니다. 높은 위험도일 경우 악성코드 실행, 개인정보 유출, 시스템 손상 등의 피해가 발생할 수 있습니다.
+
+3. **위험한 이유**: 분석 결과에서 발견된 위협 요소들이 위험도를 결정했습니다. ClamAV, YARA, 외부 위협 인텔리전스 등의 분석 결과를 종합하여 평가되었습니다.
+
+## 스피어피싱 가능성
+
+**95%** - 이메일 정보가 제공되었으며, 이메일 내용 분석 결과 스피어피싱 공격일 가능성이 매우 높습니다.
+
+**근거:**
+1. 이메일 제목에 긴급성 조성 표현 사용
+2. 합격 통보나 긍정적 소식을 이용한 심리적 공격
+3. 비정상적인 상황 설명
+4. 시간적 압박 조성
+5. 의심스러운 링크 포함
+6. 개인정보 요구 가능성
+7. 구체적 정보를 사용한 신뢰 구축 시도
+
+## 발견된 위협 요소
+
+### 1. **ClamAV 탐지 결과**
+
+{analysis_data.get('clamav_result', '탐지 없음') if analysis_data.get('clamav_result') else 'ClamAV에서 알려진 악성 시그니처를 탐지하지 못했습니다.'}
+
+### 2. **YARA 규칙 매칭**
+
+{', '.join(analysis_data.get('yara_matches', [])) if analysis_data.get('yara_matches') else 'YARA 규칙 매칭 없음'}
+
+### 3. **외부 위협 인텔리전스**
+
+외부 위협 인텔리전스 서비스를 통해 추가 검증이 수행되었습니다.
+
+## 대응 방법
+
+### 즉시 해야 할 조치
+
+1. **파일 격리**: 의심스러운 파일은 즉시 격리하고 실행하지 마세요.
+
+2. **시스템 스캔**: 안티바이러스 프로그램으로 전체 시스템 스캔을 실행하세요.
+
+3. **네트워크 모니터링**: 의심스러운 네트워크 통신이 있는지 확인하세요.
+
+### 예방을 위한 조치
+
+1. **정기적인 보안 점검**: 시스템을 정기적으로 스캔하고 업데이트하세요.
+
+2. **보안 교육**: 보안 인식 교육을 통해 위협을 인식하고 대응하세요.
+
+3. **백업**: 중요한 데이터는 정기적으로 백업하세요.
+
+## 유사 공격 사례
+
+유사한 공격 사례들이 지속적으로 발생하고 있습니다. 최신 보안 정보를 확인하고 대응 방법을 숙지하시기 바랍니다."""
+    else:
+        # No email info - use general analysis with 0% spearphishing
+        dummy_ai_analysis = f"""## 위험도 평가
+
+**{risk_level}** - 위험도 점수 {risk_score}/100에 대한 상세 평가입니다. 이 파일은 여러 분석 도구를 통해 검사되었으며, 발견된 위협 요소들을 종합적으로 평가한 결과입니다.
+
+## 3줄 요약
+
+1. **파일의 정체**: 이 파일은 분석 결과를 바탕으로 평가된 파일입니다. 위험도 점수 {risk_score}/100으로 {risk_level} 위험 수준으로 분류되었습니다.
+
+2. **발생할 수 있는 피해**: 위험도 점수에 따라 다양한 위협이 존재할 수 있습니다. 높은 위험도일 경우 악성코드 실행, 개인정보 유출, 시스템 손상 등의 피해가 발생할 수 있습니다.
+
+3. **위험한 이유**: 분석 결과에서 발견된 위협 요소들이 위험도를 결정했습니다. ClamAV, YARA, 외부 위협 인텔리전스 등의 분석 결과를 종합하여 평가되었습니다.
+
+## 스피어피싱 가능성
+
+**0%** - 이메일 정보가 제공되지 않았으며, 스피어피싱 공격과 관련된 지표가 발견되지 않았습니다.
+
+**근거:**
+1. 이메일 제목 및 내용 정보 없음
+2. 스피어피싱 관련 지표 미발견
+3. 일반적인 파일 분석 결과만 존재
+
+## 발견된 위협 요소
+
+### 1. **ClamAV 탐지 결과**
+
+{analysis_data.get('clamav_result', '탐지 없음') if analysis_data.get('clamav_result') else 'ClamAV에서 알려진 악성 시그니처를 탐지하지 못했습니다.'}
+
+### 2. **YARA 규칙 매칭**
+
+{', '.join(analysis_data.get('yara_matches', [])) if analysis_data.get('yara_matches') else 'YARA 규칙 매칭 없음'}
+
+### 3. **외부 위협 인텔리전스**
+
+외부 위협 인텔리전스 서비스를 통해 추가 검증이 수행되었습니다.
+
+## 대응 방법
+
+### 즉시 해야 할 조치
+
+1. **파일 격리**: 의심스러운 파일은 즉시 격리하고 실행하지 마세요.
+
+2. **시스템 스캔**: 안티바이러스 프로그램으로 전체 시스템 스캔을 실행하세요.
+
+3. **네트워크 모니터링**: 의심스러운 네트워크 통신이 있는지 확인하세요.
+
+### 예방을 위한 조치
+
+1. **정기적인 보안 점검**: 시스템을 정기적으로 스캔하고 업데이트하세요.
+
+2. **보안 교육**: 보안 인식 교육을 통해 위협을 인식하고 대응하세요.
+
+3. **백업**: 중요한 데이터는 정기적으로 백업하세요.
+
+## 유사 공격 사례
+
+유사한 공격 사례들이 지속적으로 발생하고 있습니다. 최신 보안 정보를 확인하고 대응 방법을 숙지하시기 바랍니다."""
+    
+    # Deduct credits (unless admin)
+    credits_used = 0
+    if current_user.role != "ADMIN":
+        credits_used = 1
+        current_user.credits -= credits_used
+        db.commit()
+    
+    # Save dummy AI analysis to database
+    db_analysis.ai_analysis = dummy_ai_analysis
+    db.commit()
+    db.refresh(db_analysis)
+    
+    return AIAnalysisResponse(
+        analysis=dummy_ai_analysis,
+        credits_used=credits_used,
+        remaining_credits=current_user.credits
+    )
     
     # Check credits (unless admin) - but don't deduct yet
     credits_used = 0
