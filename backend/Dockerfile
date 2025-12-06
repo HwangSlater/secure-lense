@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libssl-dev \
     yara \
+    libmagic1 \
+    libmagic-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
