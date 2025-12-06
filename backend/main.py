@@ -339,7 +339,10 @@ async def analyze_url_endpoint(
     # Use dummy data for URL analysis
     scan_id = str(uuid.uuid4())
     
-    # Dummy data from dummy_data.json
+    # Extract domain from URL
+    domain = url.split("//")[-1].split("/")[0] if "//" in url else url.split("/")[0]
+    
+    # Dummy data - malicious URL detection
     dummy_virustotal = {
         "url": url,
         "scan_id": f"dummy-vt-scan-id-{scan_id[:8]}",
@@ -365,7 +368,7 @@ async def analyze_url_endpoint(
     
     dummy_urlscan = {
         "url": url,
-        "domain": url.split("//")[-1].split("/")[0] if "//" in url else url.split("/")[0],
+        "domain": domain,
         "ip": "192.0.2.1",
         "country": "Unknown",
         "malicious": True,
@@ -375,7 +378,7 @@ async def analyze_url_endpoint(
         "uuid": f"dummy-urlscan-uuid-{scan_id[:8]}",
         "network_requests": [
             {
-                "domain": url.split("//")[-1].split("/")[0] if "//" in url else url.split("/")[0],
+                "domain": domain,
                 "url": url,
                 "method": "GET"
             },
@@ -395,7 +398,6 @@ async def analyze_url_endpoint(
         "org": "Unknown Organization"
     }
     
-    domain = url.split("//")[-1].split("/")[0] if "//" in url else url.split("/")[0]
     dummy_domain_info = {
         "domain": domain,
         "resolved_ip": "192.0.2.1"
@@ -631,6 +633,10 @@ async def ai_analysis(
         remaining_credits=current_user.credits
     )
     
+    # NOTE: All code below is disabled - using dummy data instead of Gemini API
+    # Original Gemini API code has been commented out
+    # The following code is unreachable but kept for reference
+    """
     # Check credits (unless admin) - but don't deduct yet
     credits_used = 0
     if current_user.role != "ADMIN":
