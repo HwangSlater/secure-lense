@@ -636,7 +636,9 @@ async def ai_analysis(
     # NOTE: All code below is disabled - using dummy data instead of Gemini API
     # Original Gemini API code has been commented out
     # The following code is unreachable but kept for reference
-    """
+    # Disabled code block - kept for reference only
+    if False:
+        """
     # Check credits (unless admin) - but don't deduct yet
     credits_used = 0
     if current_user.role != "ADMIN":
@@ -1049,7 +1051,7 @@ async def ai_analysis(
         credits_used=credits_used,
         remaining_credits=current_user.credits
     )
-    """
+        """
 
 
 # Credit charging endpoint
